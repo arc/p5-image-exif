@@ -182,7 +182,10 @@ nxtmkr(void)
 	/* Read until we see JPEG_MARKER. */
 
 	while ((b = jpg1byte()) != JPEG_M_BEG)
+		return 0;
+/*
 		bad++;
+/*
 
 	/* Read all JPEG_M_BEGs (which may be used for padding). */
 
@@ -251,7 +254,7 @@ jpegscan(FILE *fp, int *mark, unsigned int *len, int first)
 		if (nxtmkr() != JPEG_M_SOI)
 		{
 			exifdie("start of image not found");
-			return;
+			return FALSE;
 		}
 	}
 

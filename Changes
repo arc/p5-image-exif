@@ -1,8 +1,24 @@
 Revision history for Perl extension Image::EXIF.
 
+99.4  Thu Aug 12 21:42 PST 2004
+(-)	Fix
+	Martijn van de Streek found a bug and sent a patch. Below his note:
+	>In the current version of Image::EXIF there's a bug: when reading a
+	>non-EXIF JPEG file after reading an EXIF JPEG file, the module generates
+	>a Segmentation Fault.
+	>
+	>The attached patch fixes this bug by re-setting the "et" to NULL after
+	>exiffree()ing it. 
+
+(-)	Fix
+	One more issue. If file which is kinda jpeg is a wrong one, then
+	package gets stuck.
+	Fixed
+
+
 99.1  Fri May 21 14:40 PST 2004
 	Mr Eric Johnston released new version of his library which is 0.99.1
-	So we do!
+	So do we!
 
 	From now I'm gonna rename exif.c to _exif.c to allow compile and use
 	this package for Win & Mac perl cookers.

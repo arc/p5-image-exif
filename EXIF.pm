@@ -25,7 +25,7 @@ sub get_image_info($);
 our %EXPORT_TAGS = ( 'all' => [ qw() ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();
-our $VERSION = '0.99.3';
+our $VERSION = '0.99.4';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -261,7 +261,7 @@ Image::EXIF - Perl extension for exif library
    my $all_info = $exif->get_all_info(); # hash reference
 
    print $exif->error ?
-	$exit->errstr : Dumper($all_info);
+	$exif->errstr : Dumper($all_info);
 
 =head1 DESCRIPTION
 

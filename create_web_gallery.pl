@@ -51,7 +51,7 @@ my $cfg = {
 
 	mask		=> '\.jpg',
 
-	thumb_size	=> 150,
+	thumb_size	=> 180,
 
 	table_size	=> 5,
 
@@ -296,7 +296,9 @@ function toggleInfo() {
 								img({-src=>"../images/$list->[$i]"})
 							)
 							:
-							img({-src=>"../images/$list->[$i]"})
+							a({-href=>'../'}, 
+								img({-src=>"../images/$list->[$i]"})
+							)
 				)]))
 			)."\n";
 

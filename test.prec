@@ -1,6 +1,6 @@
-#include "EXTERN.h"
-#include "perl.h"
-#include "XSUB.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 
 #include "exif.h"
 #include "jpeg.h"
@@ -10,6 +10,32 @@ static char error[256];
 struct exiftags *et = NULL;
 struct exifprop *ep = NULL;
 unsigned short dumplvl = 0;
+
+int main(int argc, char **argv)
+{
+	char field[256] = "";
+	char value[256] = "";
+	int rc;
+
+	if(!read_data("bad_img.jpg"))
+	{
+		return 1;
+	}
+	
+	dumplvl = ED_CAM;
+	if (et)
+		ep = et->props;
+
+	while(rc = get_props(field, value))
+	{
+		printf("%s :: %s\n", field, value);
+	}
+
+	close_application();
+
+	return 0;
+}
+
 
 static int
 read_data(char *fname)
@@ -129,98 +155,3 @@ close_application()
 		et = NULL;
 	}
 }
-
-static int
-not_here(char *s)
-{
-    croak("%s not implemented on this architecture", s);
-    return -1;
-}
-
-static double
-constant(char *name, int len, int arg)
-{
-    errno = EINVAL;
-    return 0;
-}
-
-MODULE = Image::EXIF		PACKAGE = Image::EXIF		
-
-
-double
-constant(sv,arg)
-    PREINIT:
-	STRLEN		len;
-    INPUT:
-	SV *		sv
-	char *		s = SvPV(sv, len);
-	int		arg
-    CODE:
-	RETVAL = constant(s,len,arg);
-    OUTPUT:
-	RETVAL
-
-int
-c_read_file(fname)
-	char *fname
-CODE:
-	error[0] = '\0';
-	RETVAL = 0;
-
-	RETVAL = read_data(fname);
-OUTPUT:
-	RETVAL
-
-int
-c_get_camera_info()
-CODE:
-	dumplvl = ED_CAM;
-	if (et)
-		ep = et->props;
-
-int
-c_get_image_info()
-CODE:
-	dumplvl = ED_IMG;
-	if (et)
-		ep = et->props;
-
-int
-c_get_other_info()
-CODE:
-	dumplvl = ED_VRB;
-	if (et)
-		ep = et->props;
-
-int
-c_get_unknown_info()
-CODE:
-	dumplvl = ED_UNK;
-	if (et)
-		ep = et->props;
-
-int
-c_fetch()
-PPCODE:
-	char field[256] = "";
-	char value[256] = "";
-
-	int rc = get_props(field, value);
-	if (rc){
-		EXTEND(sp, 2);
-		PUSHs(sv_2mortal(newSVpv((char*)field, 0)));
-		PUSHs(sv_2mortal(newSVpv((char*)value, 0)));
-	}
-
-int
-c_errstr()
-PPCODE:
-	if (strlen(error)){
-		EXTEND(sp, 1);
-		PUSHs(sv_2mortal(newSVpv((char*)error, 0)));
-	}
-
-int
-c_close_all()
-PPCODE:
-	close_application();

@@ -16,22 +16,26 @@ my @list = `ls -1 *JPG *jpg *jpeg *JPEG`;
 
 my $exif = new Image::EXIF;
 
-for my $fname (@list){
+for my $fname (@list)
+{
 	chomp $fname;
 
 	$exif->file_name($fname);
 	my $data = $exif->get_all_info();
 
-	my $timestamp = $data->{image}->{'Image Created'} || $data->{other}->{'Image Generated'};
-	my $time = str2time($timestamp);
+	if ($data)
+	{
+		my $timestamp = $data->{image}->{'Image Created'} || $data->{other}->{'Image Generated'};
+		my $time = str2time($timestamp);
 
+		$timestamp = sprintf "%x", $time;
 
-	$timestamp = sprintf "%x", $time;
+		my $count = 0;
+		while (-f "img_$timestamp$count.jpg")
+		{
+			$count ++;
+		}
 
-	my $count = 0;
-	while (-f "img_$timestamp$count.jpg"){
-		$count ++;
+		rename $fname, "img_$timestamp$count.jpg";
 	}
-
-	rename $fname, "img_$timestamp$count.jpg";
 }
