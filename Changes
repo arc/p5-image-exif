@@ -1,0 +1,6 @@
+Revision history for Perl extension Image::EXIF.
+
+0.02  Tue Aug  5 10:33:19 2003
+	- original version; created by h2xs 1.21 with options
+		-n Image::EXIF
+
