@@ -31,7 +31,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
 	
 );
-our $VERSION = '0.98.1';
+our $VERSION = '0.98.2';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -271,7 +271,7 @@ Image::EXIF - Perl extension for exif library
 
 =head1 DESCRIPTION
 
-Perl Package Image::EXIF based on utility exiftags v0.97
+Perl Package Image::EXIF based on utility exiftags v0.98
 by Eric M. Johnston, emj@postal.net, http://johnst.org/sw/exiftags/.
 Actually it's just a wrapper. Weak PHP's support of EXIF
 made me write it.
