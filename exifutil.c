@@ -60,9 +60,12 @@ const char *progname;
 void
 exifdie(const char *msg)
 {
-
 	fprintf(stderr, "%s: %s\n", progname, msg);
+/*
+ *
+ *  bad call for perl module shuldn't be like that
 	exit(1);
+*/
 }
 
 void
@@ -164,7 +167,10 @@ finddescr(struct descrip *table, u_int16_t val)
 
 	for (i = 0; table[i].val != -1 && table[i].val != val; i++);
 	if (!(c = (char *)malloc(strlen(table[i].descr) + 1)))
+	{
 		exifdie((const char *)strerror(errno));
+		return NULL;
+	}
 	strcpy(c, table[i].descr);
 	return (c);
 }
@@ -193,7 +199,10 @@ newprop(void)
 
 	prop = (struct exifprop *)malloc(sizeof(struct exifprop));
 	if (!prop)
+	{
 		exifdie((const char *)strerror(errno));
+		return NULL;
+	}
 	memset(prop, 0, sizeof(struct exifprop));
 	return (prop);
 }
@@ -316,7 +325,10 @@ readifd(u_int32_t offset, struct ifd **dir, struct exiftag *tagset,
 
 	*dir = (struct ifd *)malloc(sizeof(struct ifd));
 	if (!*dir)
+	{
 		exifdie((const char *)strerror(errno));
+		return 0;
+	}
 
 	(*dir)->num = exif2byte(b + offset, md->order);
 	(*dir)->par = NULL;
