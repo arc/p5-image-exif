@@ -25,7 +25,7 @@ sub get_image_info($);
 our %EXPORT_TAGS = ( 'all' => [ qw() ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw();
-our $VERSION = '0.98.6';
+our $VERSION = '0.99.1';
 
 sub AUTOLOAD {
     # This AUTOLOAD is used to 'autoload' constants from the constant()
@@ -167,7 +167,7 @@ sub get_other_info($)
 	$hash;
 }
 
-sub get_unknow_info($)
+sub get_unknown_info($)
 {
 	my $self = shift;
 
@@ -176,7 +176,7 @@ sub get_unknow_info($)
 	if (c_errstr()){
 		push @{$self->{errstr}}, c_errstr();
 	} else {
-		c_get_unknow_info();
+		c_get_unknown_info();
 		while(my ($fld, $val) = c_fetch()){
 			$fld eq '' && next;
 			$val =~ s/\s*$//g;
@@ -217,11 +217,11 @@ sub get_all_info($)
 	                $hash->{other}->{$fld} = $val;
         	}
 
-		c_get_unknow_info();
+		c_get_unknown_info();
 		while(my ($fld, $val) = c_fetch()){
 			$fld eq '' && next;
 			$val =~ s/\s*$//g;
-	                $hash->{unknow}->{$fld} = $val;
+	                $hash->{unknown}->{$fld} = $val;
         	}
 	}
 
@@ -257,7 +257,7 @@ Image::EXIF - Perl extension for exif library
    my $camera_info = $exif->get_camera_info(); # hash reference
    my $other_info = $exif->get_other_info(); # hash reference
    my $point_shoot_info = $exif->get_point_shoot_info(); # hash reference
-   my $unknow_info = $exif->get_unknow_info(); # hash reference
+   my $unknown_info = $exif->get_unknown_info(); # hash reference
    my $all_info = $exif->get_all_info(); # hash reference
 
    print $exif->error ?
@@ -265,7 +265,7 @@ Image::EXIF - Perl extension for exif library
 
 =head1 DESCRIPTION
 
-Perl Package Image::EXIF based on utility exiftags v0.98
+Perl Package Image::EXIF based on utility exiftags v0.99.1
 by Eric M. Johnston, emj@postal.net, http://johnst.org/sw/exiftags/.
 Actually it's just a wrapper. Weak PHP's support of EXIF
 made me write it.

@@ -1,5 +1,28 @@
 Revision history for Perl extension Image::EXIF.
 
+99.1  Fri May 21 14:40 PST 2004
+	Mr Eric Johnston released new version of his library which is 0.99.1
+	So we do!
+
+	From now I'm gonna rename exif.c to _exif.c to allow compile and use
+	this package for Win & Mac perl cookers.
+
+	And just small note from Blair Zajac:
+	>Hello,
+
+	>I'm looking to use the Image::EXIF module and noticed that the
+	>'unknown' hash key is actually spelled 'unknow'.  Since all
+	>occurrences of the word are misspelled in the package, is this
+	>deliberate?
+
+	>I'm attaching a patch to fix this and a couple of other spelling
+	>mistakes.
+
+	>Best,
+	>Blair
+
+	Thanks Blair for your note.
+	Fixed.
 
 98.6  Wed Jan 14 13:53:48 PST 2004
 	HONY (OldNewYear Crazy Russian Custom)

@@ -190,7 +190,7 @@ CODE:
 		ep = et->props;
 
 int
-c_get_unknow_info()
+c_get_unknown_info()
 CODE:
 	dumplvl = ED_UNK;
 	if (et)

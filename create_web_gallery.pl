@@ -1,10 +1,16 @@
 #!/usr/local/bin/perl -w
+#
+# author : sergey s prozhogin (ccpro@rrelaxo.org.ru)
+# script creates web gallery. 
+# for information start perl create_web_gallery.pl --help
+#
+# v 1.3 May-20-2004
+#
 
 use strict;
+
 use CGI qw(:standard :html3 -no_xhtml);
-
 use Getopt::Long;
-
 use GD;
 use Image::GD::Thumbnail;
 use Image::EXIF;
@@ -21,7 +27,8 @@ sub create_thumbnails( $$ );
 my %opt;
 print "create_web_galley.pl --help (v1.3): for help\n";
 unless(GetOptions(\%opt, 
-	'no_php', 'table_size=i', 'del_src', 'in_dir=s', 'out_dir=s', 'mask=s', 'thumb_size=i', 'exif') || 
+	'no_php', 'table_size=i', 'del_src', 'in_dir=s', 'out_dir=s',
+	'mask=s', 'thumb_size=i', 'exif', 'd=s') || 
 	exists($opt{help})){
 	print qq^
 	--no_php		- remove php section and create html
@@ -50,9 +57,10 @@ my $cfg = {
 
 	style		=> 'Font-Size: 8pt; Font-Family: verdana,Arial; Font-Weight: bold;',
 
-	php_db_connect	=> 'dbname=$database_name user=$database_user',
+	php_db_connect	=> '"dbname=photos user=ccpro"',
 };
 
+$cfg->{d} = undef;
 $cfg->{$_} = $opt{$_} foreach(keys %opt);
 
 init( $cfg );
@@ -283,7 +291,12 @@ function toggleInfo() {
 
 				table({-border=>0, -cellpadding=>8, -cellspacing=>8},
 					Tr([td({-align=>'center', -bgcolor=>'#EEEEEE'},
-						img({-src=>"../images/$list->[$i]"})
+						($i+1) < @$list ?
+							a({-href=>"./$list->[$i+1].$ext"}, 
+								img({-src=>"../images/$list->[$i]"})
+							)
+							:
+							img({-src=>"../images/$list->[$i]"})
 				)]))
 			)."\n";
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2003, Eric M. Johnston <emj@postal.net>
+ * Copyright (c) 2001-2004, Eric M. Johnston <emj@postal.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: canon.c,v 1.38 2003/08/08 20:40:55 ejohnst Exp $
+ * $Id: canon.c,v 1.41 2004/05/07 05:46:06 ejohnst Exp $
  */
 
 /*
  * Exif tag definitions for Canon maker notes.
  * Developed from http://www.burren.cx/david/canon.html.
- * EOS 1D and 1Ds contributions from Stan Jirman <stanj@mac.com>.
+ * EOS 1D and 1Ds contributions from Stan Jirman <stanj@phototrek.org>.
  * EOS 10D contributions from Jason Montojo <jason.montojo@rogers.com>.
  *
  */
@@ -264,6 +264,8 @@ static struct exiftag canon_tags[] = {
 	  "Custom Function", NULL },
 	{ 0x0090, TIFF_SHORT, 0,  ED_UNK, "CustomFunc",
 	  "Custom Function", NULL },
+	{ 0x0093, TIFF_SHORT, 0,  ED_UNK, "Canon93Tag",
+	  "Canon Tag93 Offset", NULL },
 	{ 0x00a0, TIFF_SHORT, 0,  ED_UNK, "CanonA0Tag",
 	  "Canon TagA0 Offset", NULL },
 	{ 0xffff, TIFF_UNKN,  0,  ED_UNK, "CanonUnknown",
@@ -342,7 +344,7 @@ static struct exiftag canon_tags04[] = {
 	  "Autofocus Point", NULL },
 	{ 15, TIFF_SHORT, 0, ED_VRB, "CanonFlashBias",
 	  "Flash Bias", canon_fbias },
-	{ 19, TIFF_SHORT, 0, ED_UNK, "CanonSubjDst",
+	{ 19, TIFF_SHORT, 0, ED_IMG, "CanonSubjDst",
 	  "Subject Distance", NULL },
 	{ 0xffff, TIFF_SHORT, 0, ED_UNK, "Canon04Unknown",
 	  "Canon Tag4 Unknown", NULL },
@@ -352,12 +354,28 @@ static struct exiftag canon_tags04[] = {
 /* Fields under tag 0x00a0 (EOS 1D, 1Ds). */
 
 static struct exiftag canon_tagsA0[] = {
+	{ 0,  TIFF_SHORT, 0, ED_VRB, "CanonA0Len",
+	  "Canon TagA0 Length", NULL },
 	{ 9,  TIFF_SHORT, 0, ED_IMG, "CanonColorTemp",
 	  "Color Temperature", NULL },
 	{ 10, TIFF_SHORT, 0, ED_IMG, "CanonColorMatrix",
 	  "Color Matrix", NULL },
 	{ 0xffff, TIFF_SHORT, 0, ED_UNK, "CanonA0Unknown",
 	  "Canon TagA0 Unknown", NULL },
+};
+
+
+/* Fields under tag 0x0093 (counter on EOS 1D, 1Ds). */
+
+static struct exiftag canon_tags93[] = {
+	{ 0,  TIFF_SHORT, 0, ED_VRB, "Canon93Len",
+	  "Canon Tag93 Length", NULL },
+	{ 1,  TIFF_SHORT, 0, ED_VRB, "CanonActuateMult",
+	  "Actuation Multiplier", NULL },
+	{ 2,  TIFF_SHORT, 0, ED_VRB, "CanonActuateCount",
+	  "Actuation Counter", NULL },
+	{ 0xffff, TIFF_SHORT, 0, ED_UNK, "Canon93Unknown",
+	  "Canon Tag93 Unknown", NULL },
 };
 
 
@@ -768,7 +786,7 @@ static struct exiftag canon_10dcustom[] = {
  */
 static int
 canon_prop01(struct exifprop *aprop, struct exifprop *prop,
-    unsigned char *off, enum byteorder o)
+    unsigned char *off, struct exiftags *t)
 {
 	u_int16_t v = (u_int16_t)aprop->value;
 
@@ -781,7 +799,7 @@ canon_prop01(struct exifprop *aprop, struct exifprop *prop,
 	case 5:
 		/* Change "Single" to "Timed" if #2 > 0. */
 
-		if (!v && exif2byte(off + 2 * 2, o))
+		if (!v && exif2byte(off + 2 * 2, t->md.order))
 			strcpy(aprop->str, "Timed");
 		break;
 	case 12:
@@ -795,8 +813,8 @@ canon_prop01(struct exifprop *aprop, struct exifprop *prop,
 		if (v == 3 && prop->count >= 37) {
 			exifstralloc(&aprop->str, 32);
 			snprintf(aprop->str, 31, "x%.1f", 2 *
-			    (float)exif2byte(off + 37 * 2, o) /
-			    (float)exif2byte(off + 36 * 2, o));
+			    (float)exif2byte(off + 37 * 2, t->md.order) /
+			    (float)exif2byte(off + 36 * 2, t->md.order));
 		} else
 			aprop->str = finddescr(canon_dzoom, v);
 		break;
@@ -829,16 +847,62 @@ canon_prop01(struct exifprop *aprop, struct exifprop *prop,
  */
 static int
 canon_prop04(struct exifprop *aprop, struct exifprop *prop,
-    unsigned char *off, enum byteorder o)
+    unsigned char *off, struct exiftags *t)
 {
+	struct exifprop *tmpprop;
+	u_int16_t v = (u_int16_t)aprop->value;
+	int d;
 
 	switch (aprop->tag) {
 	case 7:
 		aprop->override = EXIF_T_WHITEBAL;
 		break;
 	case 9:
-		aprop->lvl = aprop->value ? ED_IMG : ED_VRB;
+		aprop->lvl = v ? ED_IMG : ED_VRB;
 		break;
+
+	/*
+	 * Sigh.  Some cameras have a standard Exif subject distance tag,
+	 * some do not.  Some express this in mm, some in cm.  (I cannot
+	 * for the life of me figure out how to tell what the units are.)
+	 * It looks like maybe some of the newer models stick to cm; we'll
+	 * assume cm and consider mm by exception.  In any case, we'll only
+	 * display the value in the absence of the standard Exif value.
+	 * Needless to say, this is pretty ugly.
+	 */
+
+	case 19:
+		exifstralloc(&aprop->str, 32);
+
+		if (!v) {
+			aprop->lvl = ED_VRB;
+			strcpy(aprop->str, "Unknown");
+			break;
+		}
+
+		if (t->model && (!strcmp(t->model, "Canon PowerShot A10") ||
+		    !strcmp(t->model, "Canon PowerShot S110") ||
+		    !strcmp(t->model, "Canon PowerShot S30") ||
+		    !strcmp(t->model, "Canon PowerShot S40") ||
+		    !strcmp(t->model, "Canon EOS 10D")))
+			d = 1000;
+		else
+			d = 100;
+
+		if (v == 0xffff)
+			strcpy(aprop->str, "Infinity");
+		else
+			snprintf(aprop->str, 31, "%.3f m",
+			    (float)v / (float)d);
+
+		if ((tmpprop = findprop(t->props, tags, EXIF_T_DISTANCE))) {
+			if (strcmp(tmpprop->str, "Unknown"))
+				aprop->lvl = ED_VRB;
+			else
+				aprop->override = EXIF_T_DISTANCE;
+		}
+		break;
+
 	default:
 		return (FALSE);
 	}
@@ -852,7 +916,7 @@ canon_prop04(struct exifprop *aprop, struct exifprop *prop,
  */
 static int
 canon_propA0(struct exifprop *aprop, struct exifprop *prop,
-    unsigned char *off, enum byteorder o)
+    unsigned char *off, struct exiftags *t)
 {
 
 	switch (aprop->tag) {
@@ -1013,6 +1077,7 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 {
 	unsigned char *offset;
 	u_int16_t flmin = 0, flmax = 0, flunit = 0;
+	u_int32_t v;
 	struct exifprop *tmpprop;
 
 	switch (prop->tag) {
@@ -1069,6 +1134,31 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 			if (tmpprop->value != 9) {
 				if ((tmpprop = findprop(prop, canon_tagsA0, 9)))
 					tmpprop->lvl = ED_BAD;
+		}
+		break;
+
+	case 0x0093:
+		if (!canon_subval(prop, t, canon_tags93, NULL))
+			break;
+		v = 0;
+
+		/* Number of acuations is in two shorts... */
+
+		if ((tmpprop = findprop(t->props, canon_tags93, 1))) {
+			v = tmpprop->value * 65536;
+
+			if ((tmpprop = findprop(prop, canon_tags93, 2)))
+				v += tmpprop->value;
+			else
+				v = 0;
+		}
+
+		if (v) {
+			tmpprop = childprop(prop);
+			tmpprop->name = "CanonActuations";
+			tmpprop->descr = "Camera Actuations";
+			tmpprop->lvl = ED_IMG;
+			tmpprop->value = v;
 		}
 		break;
 

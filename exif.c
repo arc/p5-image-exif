@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: exif.c,v 1.60 2003/08/16 03:34:21 ejohnst Exp $
+ * $Id: exif.c,v 1.63 2004/04/03 22:34:14 ejohnst Exp $
  */
 
 /*
@@ -37,7 +37,7 @@
  *
  * Developed using the TIFF 6.0 specification:
  * (http://partners.adobe.com/asn/developer/pdfs/tn/TIFF6.pdf)
- * and the EXIF 2.2 standard: (http://tsc.jeita.or.jp/avs/data/cp3451.pdf)
+ * and the EXIF 2.21 standard: (http://tsc.jeita.or.jp/avs/data/cp3451_1.pdf).
  *
  * Portions of this code were developed while referencing the public domain
  * 'Jhead' program (version 1.2) by Matthias Wandel <mwandel@rim.net>.
@@ -397,9 +397,14 @@ tweaklvl(struct exifprop *prop, struct exiftags *t)
 			prop->lvl = ED_VRB;
 	}
 
-	/* IFD1 refers to the thumbnail image; we don't really care. */
+	/*
+	 * IFD1 refers to the thumbnail image; we don't really care.
+	 * It seems that some images might not have an IFD1 (does FinePix
+	 * Viewer strip it?), so make sure that the property doesn't have
+	 * a parent association.
+	 */
 
-	if (prop->ifdseq == 1 && prop->lvl != ED_UNK)
+	if (prop->ifdseq == 1 && !prop->par && prop->lvl != ED_UNK)
 		prop->lvl = ED_VRB;
 
 	/* Maker tags can override normal Exif tags. */
@@ -444,6 +449,15 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 	case EXIF_T_EXIFIFD:
 	case EXIF_T_GPSIFD:
 	case EXIF_T_INTEROP:
+		/*
+		 * Prevent looping when the tag refers to its own IFD...
+		 * (Occurs in a screwed-up Agfa example.)
+		 */
+		if (prop->par && prop->tag == prop->par->tag) {
+			exifwarn2("IFD tag refers to itself", prop->name);
+			break;
+		}
+
 		md = &dir->md;
 		while (dir->next)
 			dir = dir->next;
@@ -476,7 +490,8 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 			if (prop->tag == EXIF_T_INTEROP)
 				break;
 #endif
-			exifwarn("invalid Exif format (IFD length mismatch)");
+			exifwarn2("invalid Exif format: IFD length mismatch",
+			    prop->name);
 			break;
 		}
 
@@ -538,6 +553,15 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 	/* Lookup functions for maker note. */
 
 	case EXIF_T_EQUIPMAKE:
+
+		/* Sanity check the offset. */
+
+		if (prop->value + prop->count >
+		    (u_int32_t)(dir->md.etiff - btiff)) {
+			exifwarn2("invalid field offset", prop->name);
+			break;
+		}
+
 		strncpy(buf, (const char *)(btiff + prop->value), sizeof(buf));
 		buf[sizeof(buf) - 1] = '\0';
 		for (c = buf; *c; c++) *c = tolower(*c);
@@ -556,12 +580,11 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 	 * of the comment indicate what charset follows.  For now, we
 	 * just support ASCII.
 	 *
-	 * XXX A handful of the GPS tags are also stored in this format
-	 * (GPSProcessingMethod & GPSAreaInformation).
+	 * XXX A handful of the GPS tags are also stored in this format.
 	 */
 
-	case 0x001b:
-	case 0x001c:
+	case 0x001b:	/* GPSProcessingMethod */
+	case 0x001c:	/* GPSAreaInformation */
 		/*
 		 * XXX Note that this is kind of dangerous -- any other
 		 * tag set won't reach the end of the switch...
@@ -571,7 +594,11 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 		/* FALLTHROUGH */
 
 	case EXIF_T_USERCOMMENT:
-		if (prop->count < 8)
+
+		/* Check for a comment type and sane offset. */
+
+		if (prop->count < 8 || (prop->value + prop->count >
+		    (u_int32_t)(dir->md.etiff - btiff)))
 			break;
 
 		/* Ignore the 'comments' WinXP creates when rotating. */
@@ -589,9 +616,7 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 
 		/* Handle an ASCII comment; strip any trailing whitespace. */
 
-		if (ucomment[i].val == TIFF_ASCII &&
-		    (prop->value + prop->count <
-		    (u_int32_t)(dir->md.etiff - btiff))) {
+		if (ucomment[i].val == TIFF_ASCII) {
 			c = (char *)(btiff + prop->value + 8);
 			d = strlen(c) < prop->count - 8 ? c + strlen(c) :
 			    c + prop->count - 8;
