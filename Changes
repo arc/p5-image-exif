@@ -1,6 +1,11 @@
 Revision history for Perl extension Image::EXIF.
 
-0.02  Tue Aug  5 10:33:19 2003
+98.3  Mon Nov 10 11:28:48 PST 2003
+	* bugfix.
+	  EXIF got core dump if jpeg didn't have exif section.
+	   based on comment from Sebastien Gross (tnku)
+
+0.02  Tue Aug  5 10:33:19 PST 2003
 	- original version; created by h2xs 1.21 with options
 		-n Image::EXIF
 
