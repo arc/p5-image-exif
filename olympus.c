@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: olympus.c,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: olympus.c,v 1.16 2003/08/06 02:26:42 ejohnst Exp $
  */
 
 /*
@@ -42,9 +42,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
-#include "exif.h"
 #include "makers.h"
 
 
@@ -95,46 +93,16 @@ static struct exiftag olympus_tags[] = {
 void
 olympus_prop(struct exifprop *prop, struct exiftags *t)
 {
-	int i;
 	u_int32_t a, b;
-	u_int16_t v = (u_int16_t)prop->value;
-	char *offset;
+	unsigned char *offset;
 	struct exifprop *aprop;
-
-	/*
-	 * Don't process properties we've created while looking at other
-	 * maker note tags.
-	 */
-
-	if (prop->subtag > -2)
-		return;
-
-	/* Lookup the field name (if known). */
-
-	for (i = 0; olympus_tags[i].tag < EXIF_T_UNKNOWN &&
-	    olympus_tags[i].tag != prop->tag; i++);
-	prop->name = olympus_tags[i].name;
-	prop->descr = olympus_tags[i].descr;
-	prop->lvl = olympus_tags[i].lvl;
-	if (olympus_tags[i].table)
-		prop->str = finddescr(olympus_tags[i].table, v);
-
-	if (debug) {
-		static int once = 0;	/* XXX Breaks on multiple files. */
-
-		if (!once) {
-			printf("Processing Olympus Maker Note\n");
-			once = 1;
-		}
-		dumpprop(prop, NULL);
-	}
 
 	switch (prop->tag) {
 
 	/* Various image data. */
 
 	case 0x0200:
-		offset = t->btiff + prop->value;
+		offset = t->md.btiff + prop->value;
 
 		/*
 		 * XXX Would be helpful to test this with a panoramic.
@@ -146,7 +114,7 @@ olympus_prop(struct exifprop *prop, struct exiftags *t)
 		/* Picture taking mode. */
 
 		aprop = childprop(prop);
-		aprop->value = exif4byte(offset, t->tifforder);
+		aprop->value = exif4byte(offset, t->md.order);
 		aprop->name = "OlympusPicMode";
 		aprop->descr = "Picture Mode";
 		aprop->lvl = ED_UNK;
@@ -154,7 +122,7 @@ olympus_prop(struct exifprop *prop, struct exiftags *t)
 		/* Sequence number. */
 
 		aprop = childprop(prop);
-		aprop->value = exif4byte(offset + 4, t->tifforder);
+		aprop->value = exif4byte(offset + 4, t->md.order);
 		aprop->name = "OlympusSeqNum";
 		aprop->descr = "Sequence Number";
 		aprop->lvl = ED_UNK;
@@ -162,7 +130,7 @@ olympus_prop(struct exifprop *prop, struct exiftags *t)
 		/* Panorama direction. */
 
 		aprop = childprop(prop);
-		aprop->value = exif4byte(offset + 8, t->tifforder);
+		aprop->value = exif4byte(offset + 8, t->md.order);
 		aprop->name = "OlympusPanDir";
 		aprop->descr = "Panoramic Direction";
 		aprop->lvl = ED_UNK;
@@ -172,8 +140,8 @@ olympus_prop(struct exifprop *prop, struct exiftags *t)
 	/* Digital zoom. */
 
 	case 0x0204:
-		a = exif4byte(t->btiff + prop->value, t->tifforder);
-		b = exif4byte(t->btiff + prop->value + 4, t->tifforder);
+		a = exif4byte(t->md.btiff + prop->value, t->md.order);
+		b = exif4byte(t->md.btiff + prop->value + 4, t->md.order);
 
 		if (a == b)
 			snprintf(prop->str, 31, "None");
@@ -184,11 +152,9 @@ olympus_prop(struct exifprop *prop, struct exiftags *t)
 	/* Image number. */
 
 	case 0x0008:
-		if (!(prop->str = (char *)malloc(32)))
-			exifdie((const char *)strerror(errno));
+		exifstralloc(&prop->str, 32);
 		snprintf(prop->str, 31, "%03d-%04d", prop->value / 10000,
 		    prop->value % 10000);
-		prop->str[31] = '\0';
 		break;
 	}
 }
@@ -198,7 +164,7 @@ olympus_prop(struct exifprop *prop, struct exiftags *t)
  * Try to read an Olympus maker note IFD.
  */
 struct ifd *
-olympus_ifd(u_int32_t offset, struct exiftags *t)
+olympus_ifd(u_int32_t offset, struct tiffmeta *md)
 {
 	struct ifd *myifd;
 
@@ -207,10 +173,10 @@ olympus_ifd(u_int32_t offset, struct exiftags *t)
 	 * try reading the IFD starting at offset + 8 ("OLYMP" + 3).
 	 */
 
-	if (!strcmp(t->btiff + offset, "OLYMP"))
-		readifd(t->btiff + offset + strlen("OLYMP") + 3, &myifd, t);
+	if (!strcmp((const char *)(md->btiff + offset), "OLYMP"))
+		readifd(offset + strlen("OLYMP") + 3, &myifd, olympus_tags, md);
 	else
-		readifd(t->btiff + offset, &myifd, t);
+		readifd(offset, &myifd, olympus_tags, md);
 
 	return (myifd);
 }

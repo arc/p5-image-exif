@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: minolta.c,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: minolta.c,v 1.25 2003/08/08 22:31:32 ejohnst Exp $
  *
  */ 
 
@@ -45,7 +45,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <math.h>
 
 #include "makers.h"
@@ -302,7 +301,7 @@ static struct exiftag minolta_tags[] = {
 
 /* Fields under tags 0x0001 and 0x0003. */
 
-static struct exiftag minolta_0TLM[] = {
+static struct exiftag minolta_MLT0[] = {
 	{ 1,  TIFF_LONG, 1, ED_IMG, "MinoltaExpProg",
 	  "Exposure Program", minolta_prog },
 	{ 2,  TIFF_LONG, 1, ED_IMG, "MinoltaFlashMode",
@@ -408,17 +407,19 @@ static struct exiftag minolta_unkn[] = {
  * Process maker note tag 0x0001 and 0x0003 fields.
  */
 void
-minolta_cprop(struct exifprop *prop, char *off, struct exiftags *t,
+minolta_cprop(struct exifprop *prop, unsigned char *off, struct exiftags *t,
     struct exiftag *thetags)
 {
 	unsigned int i, j, k;
 	u_int32_t v;
 	int32_t model;
 	double d;
-	unsigned char *cp, *valbuf;
+	char *valbuf;
+	unsigned char buf[8];
 	struct exifprop *aprop;
 
 	valbuf = NULL;
+	model = -1;
 
 	for (i = 0; i * 4 < prop->count; i++) {
 
@@ -428,14 +429,15 @@ minolta_cprop(struct exifprop *prop, char *off, struct exiftags *t,
 		 * skip #51.
 		 */
 
-		if (thetags == minolta_0TLM && i >= 51 && model == 5) {
+		if (thetags == minolta_MLT0 && i >= 51 && model == 5) {
 			if (i == 51) continue;
 			k = i - 1;
 		} else
 			k = i;
 
 		aprop = childprop(prop);
-		aprop->subtag = i;
+		aprop->tag = i;
+		aprop->tagset = thetags;
 
 		/* Note: these are big-endian regardless. */
 		aprop->value = exif4byte(off + (4 * i), BIG);
@@ -460,14 +462,11 @@ minolta_cprop(struct exifprop *prop, char *off, struct exiftags *t,
 		 * tags passed in.
 		 */
 
-		if (thetags != minolta_0TLM)
+		if (thetags != minolta_MLT0)
 			continue;
 
-		if (!valbuf) {
-			if (!(valbuf = (char *)malloc(16)))
-				exifdie((const char *)strerror(errno));
-			valbuf[15] = '\0';
-		}
+		if (!valbuf)
+			exifstralloc(&valbuf, 16);
 
 		switch (k) {
 
@@ -587,9 +586,9 @@ minolta_cprop(struct exifprop *prop, char *off, struct exiftags *t,
 		case 21:
 			aprop->str = valbuf;
 			valbuf = NULL;
-			cp = (unsigned char *)&aprop->value;
+			byte4exif(aprop->value, buf, LITTLE);
 			snprintf(aprop->str, 15, "%02d/%02d/%04d",
-			    cp[0], cp[1], cp[3] << 8 | cp[2]);
+			    buf[0], buf[1], buf[3] << 8 | buf[2]);
 			break;
 
 		/* Time. */
@@ -597,9 +596,9 @@ minolta_cprop(struct exifprop *prop, char *off, struct exiftags *t,
 		case 22:
 			aprop->str = valbuf;
 			valbuf = NULL;
-			cp = (unsigned char *)&aprop->value;
+			byte4exif(aprop->value, buf, LITTLE);
 			snprintf(aprop->str, 9, "%02d:%02d:%02d",
-			    cp[2], cp[1], cp[0]);
+			    buf[2], buf[1], buf[0]);
 			break;
 
 		/* White balance. */
@@ -653,17 +652,17 @@ minolta_cprop(struct exifprop *prop, char *off, struct exiftags *t,
  * Make sure meaningless values are meaningless.
  */
 void
-minolta_naval(struct exifprop *props, u_int16_t tag, int16_t subtag)
+minolta_naval(struct exifprop *props, struct exiftag *tags, int16_t tag)
 {
 	struct exifprop *prop;
 	const char *na = "n/a";
 
-	if (!(prop = findsprop(props, tag, subtag)))
+	if (!(prop = findprop(props, tags, tag)))
 		return;
 
 	free(prop->str);
-	if (!(prop->str = (char *)malloc(strlen(na) + 1)))
-		exifdie((const char *)strerror(errno));
+	prop->str = NULL;
+	exifstralloc(&prop->str, strlen(na) + 1);
 	strcpy(prop->str, na);
 	prop->lvl = ED_BAD;
 }
@@ -675,25 +674,8 @@ minolta_naval(struct exifprop *props, u_int16_t tag, int16_t subtag)
 void
 minolta_prop(struct exifprop *prop, struct exiftags *t)
 {
-	int i;
-	struct exiftag *fielddefs;
+	struct exiftag *fielddefs = NULL;
 	struct exifprop *tmpprop;
-
-	/*
-	 * Don't process properties we've created while looking at other
-	 * maker note tags.
-	 */
-
-	if (prop->subtag > -2)
-		return;
-
-	/* Lookup the field name (if known). */
-
-	for (i = 0; minolta_tags[i].tag < EXIF_T_UNKNOWN &&
-	    minolta_tags[i].tag != prop->tag; i++);
-	prop->name = minolta_tags[i].name;
-	prop->descr = minolta_tags[i].descr;
-	prop->lvl = minolta_tags[i].lvl;
 
 	if (debug) {
 		static int once = 0;	/* XXX Breaks on multiple files. */
@@ -710,14 +692,14 @@ minolta_prop(struct exifprop *prop, struct exiftags *t)
 	/* Maker note type. */
 
 	case 0x0000:
-		if (!(prop->str = (char *)malloc(prop->count + 1)))
-			exifdie((const char *)strerror(errno));
-		strncpy(prop->str, (const char *)&prop->value, prop->count);
-		prop->str[prop->count] = '\0';
+		if (prop->count < 4)
+			break;
+		exifstralloc(&prop->str, prop->count + 1);
+		byte4exif(prop->value, (unsigned char *)prop->str, t->md.order);
 
-		/* We recognize two types: 0TLM and mlt0. */
+		/* We recognize two types: MLT0 and mlt0. */
 
-		if (strcmp(prop->str, "0TLM") && strcmp(prop->str, "mlt0"))
+		if (strcmp(prop->str, "MLT0") && strcmp(prop->str, "mlt0"))
 			exifwarn2("Minolta maker note version not supported",
 			    prop->str);
 		break;
@@ -732,8 +714,8 @@ minolta_prop(struct exifprop *prop, struct exiftags *t)
 			exifwarn("Minolta maker note not fully supported");
 			fielddefs = minolta_unkn;
 		} else
-			fielddefs = minolta_0TLM;
-		minolta_cprop(prop, t->btiff + prop->value, t, fielddefs);
+			fielddefs = minolta_MLT0;
+		minolta_cprop(prop, t->md.btiff + prop->value, t, fielddefs);
 		break;
 
 	case 0x0003:
@@ -741,62 +723,62 @@ minolta_prop(struct exifprop *prop, struct exiftags *t)
 			exifwarn("Minolta maker note not fully supported");
 			fielddefs = minolta_unkn;
 		} else
-			fielddefs = minolta_0TLM;
-		minolta_cprop(prop, t->btiff + prop->value, t, fielddefs);
+			fielddefs = minolta_MLT0;
+		minolta_cprop(prop, t->md.btiff + prop->value, t, fielddefs);
 		break;
 	}
 
 	/* Override meaningless values. */
 
-	if (prop->tag == 0x0001 || prop->tag == 0x0003) {
+	if (fielddefs) {
 
 		/* Drive mode (bracketing step & mode). */
 
-		if ((tmpprop = findsprop(t->props, prop->tag, 6)))
+		if ((tmpprop = findprop(t->props, fielddefs, 6)))
 			if (tmpprop->value != 4) {
-				minolta_naval(t->props, prop->tag, 14);
-				minolta_naval(t->props, prop->tag, 50);
+				minolta_naval(t->props, fielddefs, 14);
+				minolta_naval(t->props, fielddefs, 50);
 			}
 
 		/* Focus mode (wide focus area, AF zone, point X & Y). */
 
-		if ((tmpprop = findsprop(t->props, prop->tag, 48)))
+		if ((tmpprop = findprop(t->props, fielddefs, 48)))
 			if (tmpprop->value == 1) {
-				minolta_naval(t->props, prop->tag, 45);
-				minolta_naval(t->props, prop->tag, 46);
-				minolta_naval(t->props, prop->tag, 47);
-				minolta_naval(t->props, prop->tag, 49);
+				minolta_naval(t->props, fielddefs, 45);
+				minolta_naval(t->props, fielddefs, 46);
+				minolta_naval(t->props, fielddefs, 47);
+				minolta_naval(t->props, fielddefs, 49);
 			}
 
 		/* Flash fired (flash comp, mode, & internal flash). */
 
-		if ((tmpprop = findsprop(t->props, prop->tag, 20)))
+		if ((tmpprop = findprop(t->props, fielddefs, 20)))
 			if (tmpprop->value != 1) {
-				minolta_naval(t->props, prop->tag, 2);
-				minolta_naval(t->props, prop->tag, 35);
-				minolta_naval(t->props, prop->tag, 43);
+				minolta_naval(t->props, fielddefs, 2);
+				minolta_naval(t->props, fielddefs, 35);
+				minolta_naval(t->props, fielddefs, 43);
 			}
 
 		/* Exposure mode (meter mode, exposure comp). */
 
-		if ((tmpprop = findprop(t->props, EXIF_T_EXPMODE)))
+		if ((tmpprop = findprop(t->props, tags, EXIF_T_EXPMODE)))
 			if (tmpprop->value == 1) {
-				minolta_naval(t->props, prop->tag, 7);
-				minolta_naval(t->props, prop->tag, 13);
+				minolta_naval(t->props, fielddefs, 7);
+				minolta_naval(t->props, fielddefs, 13);
 			}
 
 		/* Exposure prog (scene capture type). */
 
-		if ((tmpprop = findsprop(t->props, prop->tag, 1)))
+		if ((tmpprop = findprop(t->props, fielddefs, 1)))
 			if (tmpprop->value != 0)
-				minolta_naval(t->props, prop->tag, 34);
+				minolta_naval(t->props, fielddefs, 34);
 
 		/* Interval mode (interval pics, time). */
 
-		if ((tmpprop = findsprop(t->props, prop->tag, 38)))
+		if ((tmpprop = findprop(t->props, fielddefs, 38)))
 			if (tmpprop->value != 1) {
-				minolta_naval(t->props, prop->tag, 16);
-				minolta_naval(t->props, prop->tag, 17);
+				minolta_naval(t->props, fielddefs, 16);
+				minolta_naval(t->props, fielddefs, 17);
 			}
 	}
 }
@@ -806,25 +788,26 @@ minolta_prop(struct exifprop *prop, struct exiftags *t)
  * Try to read a Minolta maker note IFD, which differs by model.
  */
 struct ifd *
-minolta_ifd(u_int32_t offset, struct exiftags *t)
+minolta_ifd(u_int32_t offset, struct tiffmeta *md)
 {
 
 	/* DiMAGE E201. */
 
-	if (!strcmp(t->btiff + offset, "+M")) {
+	if (!strcmp((const char *)(md->btiff + offset), "+M")) {
 		exifwarn("Minolta maker note version not supported");
 		return (NULL);
 	}
 
 	/*
-	 * Assume that if IFD num > 255, this isn't a real IFD.
-	 * Takes care of the unfortunate DiMAGE 2300.
+	 * Assume that if IFD num > 255 or < 2, this isn't a real IFD.
+	 * Takes care of the unfortunate DiMAGE 2300 & EX.
 	 */
 
-	if (exif2byte(t->btiff + offset, t->tifforder) > 0xff) {
+	if (exif2byte(md->btiff + offset, md->order) > 0xff ||
+	    exif2byte(md->btiff + offset, md->order) < 0x02) {
 		exifwarn("Minolta maker note version not supported");
 		return (NULL);
 	}
 
-	return (readifds(offset, t));
+	return (readifds(offset, minolta_tags, md));
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Eric M. Johnston <emj@postal.net>
+ * Copyright (c) 2001-2003, Eric M. Johnston <emj@postal.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: exifutil.c,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: exifutil.c,v 1.24 2003/08/08 22:31:32 ejohnst Exp $
  */
 
 /*
@@ -52,7 +52,7 @@
 
 int debug;
 const char *progname;
-extern char error[256];
+
 
 /*
  * Logging and error functions.
@@ -61,22 +61,22 @@ void
 exifdie(const char *msg)
 {
 
-	fprintf(error, "%s: %s\n", progname, msg);
-/*	exit(1);*/
+	fprintf(stderr, "%s: %s\n", progname, msg);
+	exit(1);
 }
 
 void
 exifwarn(const char *msg)
 {
 
-	fprintf(error, "%s: %s\n", progname, msg);
+	fprintf(stderr, "%s: %s\n", progname, msg);
 }
 
 void
 exifwarn2(const char *msg1, const char *msg2)
 {
 
-	fprintf(error, "%s: %s (%s)\n", progname, msg1, msg2);
+	fprintf(stderr, "%s: %s (%s)\n", progname, msg1, msg2);
 }
 
 
@@ -84,7 +84,7 @@ exifwarn2(const char *msg1, const char *msg2)
  * Read an unsigned 2-byte int from the buffer.
  */
 u_int16_t
-exif2byte(unsigned char *b, enum order o)
+exif2byte(unsigned char *b, enum byteorder o)
 {
 
 	if (o == BIG)
@@ -98,7 +98,7 @@ exif2byte(unsigned char *b, enum order o)
  * Read a signed 2-byte int from the buffer.
  */
 int16_t
-exif2sbyte(unsigned char *b, enum order o)
+exif2sbyte(unsigned char *b, enum byteorder o)
 {
 
 	if (o == BIG)
@@ -112,13 +112,30 @@ exif2sbyte(unsigned char *b, enum order o)
  * Read an unsigned 4-byte int from the buffer.
  */
 u_int32_t
-exif4byte(unsigned char *b, enum order o)
+exif4byte(unsigned char *b, enum byteorder o)
 {
 
 	if (o == BIG)
 		return ((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]);
 	else
 		return ((b[3] << 24) | (b[2] << 16) | (b[1] << 8) | b[0]);
+}
+
+
+/*
+ * Write an unsigned 4-byte int to a buffer.
+ */
+void
+byte4exif(u_int32_t n, unsigned char *b, enum byteorder o)
+{
+	int i;
+
+	if (o == BIG)
+		for (i = 0; i < 4; i++)
+			b[3 - i] = (unsigned char)((n >> (i * 8)) & 0xff);
+	else
+		for (i = 0; i < 4; i++)
+			b[i] = (unsigned char)((n >> (i * 8)) & 0xff);
 }
 
 
@@ -126,7 +143,7 @@ exif4byte(unsigned char *b, enum order o)
  * Read a signed 4-byte int from the buffer.
  */
 int32_t
-exif4sbyte(unsigned char *b, enum order o)
+exif4sbyte(unsigned char *b, enum byteorder o)
 {
 
 	if (o == BIG)
@@ -137,7 +154,7 @@ exif4sbyte(unsigned char *b, enum order o)
 
 
 /*
- * Lookup description for a value.
+ * Lookup and allocate description for a value.
  */
 char *
 finddescr(struct descrip *table, u_int16_t val)
@@ -154,25 +171,13 @@ finddescr(struct descrip *table, u_int16_t val)
 
 
 /*
- * Lookup a property entry.
+ * Lookup a property entry belonging to a particular set of tags.
  */
 struct exifprop *
-findprop(struct exifprop *prop, u_int16_t tag)
+findprop(struct exifprop *prop, struct exiftag *tagset, u_int16_t tag)
 {
 
-	for (; prop && prop->tag != tag; prop = prop->next);
-	return (prop);
-}
-
-
-/*
- * Lookup a sub-property entry given tag and subtag.
- */
-struct exifprop *
-findsprop(struct exifprop *prop, u_int16_t tag, int16_t subtag)
-{
-
-	for (; prop && (prop->tag != tag || prop->subtag != subtag);
+	for (; prop && (prop->tagset != tagset || prop->tag != tag);
 	    prop = prop->next);
 	return (prop);
 }
@@ -190,14 +195,6 @@ newprop(void)
 	if (!prop)
 		exifdie((const char *)strerror(errno));
 	memset(prop, 0, sizeof(struct exifprop));
-
-	/*
-	 * Default; maker modules can depend on this being -2 unless they
-	 * they touch it.  (-1 is reserved for synthesized maker values.)
-	 */
-
-	prop->subtag = -2;
-
 	return (prop);
 }
 
@@ -214,7 +211,7 @@ childprop(struct exifprop *parent)
 
 	prop = newprop();
 
-	/* Property inherits everything but type & subtag from its parent. */
+	/* By default, the child inherits most values from its parent. */
 
 	prop->tag = parent->tag;
 	prop->type = TIFF_UNKN;
@@ -222,8 +219,7 @@ childprop(struct exifprop *parent)
 	prop->descr = parent->descr;
 	prop->lvl = parent->lvl;
 	prop->ifdseq = parent->ifdseq;
-	prop->ifdtag = parent->ifdtag;
-	prop->subtag = -1;
+	prop->par = parent;
 	prop->next = parent->next;
 
 	/* Now insert the new property into our list. */
@@ -231,6 +227,22 @@ childprop(struct exifprop *parent)
 	parent->next = prop;
 
 	return (prop);
+}
+
+
+/*
+ * Allocate a buffer for a property's display string.
+ */
+void
+exifstralloc(char **str, int len)
+{
+
+	if (*str) {
+		exifwarn("tried to alloc over non-null string");
+		abort();
+	}
+	if (!(*str = (char *)calloc(1, len)))
+		exifdie((const char *)strerror(errno));
 }
 
 
@@ -258,29 +270,23 @@ dumpprop(struct exifprop *prop, struct field *afield)
 	if (!debug) return;
 
 	for (i = 0; ftypes[i].type && ftypes[i].type != prop->type; i++);
-
-	if (prop->subtag < -1) {
-		if (afield) {
-			printf("   %s (0x%04X): %s, %d; %d\n", prop->name,
-			    prop->tag, ftypes[i].name, prop->count,
-			    prop->value);
-			printf("      ");
-			hexprint(afield->tag, 2);
-			printf(" |");
-			hexprint(afield->type, 2);
-			printf(" |");
-			hexprint(afield->count, 4);
-			printf(" |");    
-			hexprint(afield->value, 4);
-			printf("\n");
-		} else
-			printf("   %s (0x%04X): %s, %d; %d, 0x%04X\n",
-			    prop->name, prop->tag, ftypes[i].name,
-			    prop->count, prop->value, prop->value);
-	} else
-		printf("     %s (%d): %s, %d; %d, 0x%04X\n", prop->name,
-		    prop->subtag, ftypes[i].name, prop->count, prop->value,
+	if (afield) {
+		printf("   %s (0x%04X): %s, %d; %d\n", prop->name,
+		    prop->tag, ftypes[i].name, prop->count,
 		    prop->value);
+		printf("      ");
+		hexprint(afield->tag, 2);
+		printf(" |");
+		hexprint(afield->type, 2);
+		printf(" |");
+		hexprint(afield->count, 4);
+		printf(" |");    
+		hexprint(afield->value, 4);
+		printf("\n");
+	} else
+		printf("   %s (0x%04X): %s, %d; %d, 0x%04X\n",
+		    prop->name, prop->tag, ftypes[i].name,
+		    prop->count, prop->value, prop->value);
 }
 
 
@@ -289,9 +295,13 @@ dumpprop(struct exifprop *prop, struct field *afield)
  * Exif buffer, returns the IFD and an offset to the next IFD.
  */
 u_int32_t
-readifd(unsigned char *b, struct ifd **dir, struct exiftags *t)
+readifd(u_int32_t offset, struct ifd **dir, struct exiftag *tagset,
+    struct tiffmeta *md)
 {
 	u_int32_t ifdsize;
+	unsigned char *b;
+
+	b = md->btiff;
 
 	/*
 	 * Verify that we have a valid offset.  Some maker note IFDs prepend
@@ -299,7 +309,7 @@ readifd(unsigned char *b, struct ifd **dir, struct exiftags *t)
 	 * (Number of directory entries is in the first 2 bytes.)
 	 */
 
-	if (b + 2 > t->etiff) {
+	if (b + offset + 2 > md->etiff) {
 		*dir = NULL;
 		return (0);
 	}
@@ -308,15 +318,18 @@ readifd(unsigned char *b, struct ifd **dir, struct exiftags *t)
 	if (!*dir)
 		exifdie((const char *)strerror(errno));
 
+	(*dir)->num = exif2byte(b + offset, md->order);
+	(*dir)->par = NULL;
+	(*dir)->tagset = tagset;
+	(*dir)->md = *md;
 	(*dir)->next = NULL;
-	(*dir)->num = exif2byte(b, t->tifforder);
-	(*dir)->tag = EXIF_T_UNKNOWN;
+
 	ifdsize = (*dir)->num * sizeof(struct field);
-	b += 2;
+	b += offset + 2;
 
 	/* Sanity check our sizes. */
 
-	if (b + ifdsize > t->etiff) {
+	if (b + ifdsize > md->etiff) {
 		free(*dir);
 		*dir = NULL;
 		return (0);
@@ -329,7 +342,7 @@ readifd(unsigned char *b, struct ifd **dir, struct exiftags *t)
 	/*
 	 * While we're here, find the offset to the next IFD.
 	 *
-	 * XXX Note that this offset isn't always going to be valid.  It
+	 * Note that this offset isn't always going to be valid.  It
 	 * seems that some camera implementations of Exif ignore the spec
 	 * and do not include the offset for all IFDs (e.g., maker note).
 	 * Therefore, it may be necessary to call readifd() directly (in
@@ -337,8 +350,8 @@ readifd(unsigned char *b, struct ifd **dir, struct exiftags *t)
 	 * standard IFDs.
 	 */
 
-	return ((b + ifdsize + 4 > t->etiff) ? 0 :
-	    exif4byte(b + ifdsize, t->tifforder));
+	return ((b + ifdsize + 4 > md->etiff) ? 0 :
+	    exif4byte(b + ifdsize, md->order));
 }
 
 
@@ -347,19 +360,19 @@ readifd(unsigned char *b, struct ifd **dir, struct exiftags *t)
  * node in a chain of IFDs.  Note that it can return NULL.
  */
 struct ifd *
-readifds(u_int32_t offset, struct exiftags *t)
+readifds(u_int32_t offset, struct exiftag *tagset, struct tiffmeta *md)
 {
 	struct ifd *firstifd, *curifd;
 
 	/* Fetch our first one. */
 
-	offset = readifd(t->btiff + offset, &firstifd, t);
+	offset = readifd(offset, &firstifd, tagset, md);
 	curifd = firstifd;
 
 	/* Fetch any remaining ones. */
 
 	while (offset) {
-		offset = readifd(t->btiff + offset, &(curifd->next), t);
+		offset = readifd(offset, &(curifd->next), tagset, md);
 		curifd = curifd->next;
 	}
 	return (firstifd);

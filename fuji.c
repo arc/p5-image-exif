@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: fuji.c,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: fuji.c,v 1.14 2003/08/06 22:54:33 ejohnst Exp $
  */
 
 /*
@@ -40,7 +40,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "makers.h"
 
@@ -200,38 +199,16 @@ static struct exiftag fuji_tags[] = {
 void
 fuji_prop(struct exifprop *prop, struct exiftags *t)
 {
-	int i;
-	u_int16_t v = (u_int16_t)prop->value;
-
-	/* Lookup the field name (if known). */
-
-	for (i = 0; fuji_tags[i].tag < EXIF_T_UNKNOWN &&
-	    fuji_tags[i].tag != prop->tag; i++);
-	prop->name = fuji_tags[i].name;
-	prop->descr = fuji_tags[i].descr;
-	prop->lvl = fuji_tags[i].lvl;
-	if (fuji_tags[i].table)
-		prop->str = finddescr(fuji_tags[i].table, v);
-
-	if (debug) {
-		static int once = 0;	/* XXX Breaks on multiple files. */
-
-		if (!once) {
-			printf("Processing Fuji Maker Note\n");
-			once = 1;
-		}
-		dumpprop(prop, NULL);
-	}
 
 	switch (prop->tag) {
 
 	/* Maker note version. */
 
 	case 0x0000:
-		if (!(prop->str = (char *)malloc(prop->count + 1)))
-			exifdie((const char *)strerror(errno));
-		strncpy(prop->str, (const char*)(&prop->value), prop->count);
-		prop->str[prop->count] = '\0';
+		if (prop->count != 4)
+			break;
+		exifstralloc(&prop->str, prop->count + 1);
+		byte4exif(prop->value, (unsigned char *)prop->str, LITTLE);
 		break;
 	}
 }
@@ -241,32 +218,28 @@ fuji_prop(struct exifprop *prop, struct exiftags *t)
  * Try to read a Fuji maker note IFD.
  */
 struct ifd *
-fuji_ifd(u_int32_t offset, struct exiftags *t)
+fuji_ifd(u_int32_t offset, struct tiffmeta *md)
 {
 	struct ifd *myifd;
-	struct exiftags fujit;
 	int fujilen, fujioff;
+	struct tiffmeta mkrmd;
 
 	fujilen = strlen("FUJIFILM");
+	mkrmd = *md;
 
 	/*
 	 * The Fuji maker note appears to be in Intel byte order
-	 * regardless of the rest of the file (!).
+	 * regardless of the rest of the file (!).  Also, it seems that
+	 * Fuji maker notes start with an ID string, followed by an IFD
+	 * offset relative to the MakerNote tag.
 	 */
 
-	fujit = *t;
-	fujit.tifforder = LITTLE;
-
-	/*
-	 * Seems that Fuji maker notes start with an ID string, followed by
-	 * an IFD offset relative to the MakerNote tag.
-	 */
-
-	if (!strncmp(t->btiff + offset, "FUJIFILM", fujilen)) {
-		fujioff = exif2byte(t->btiff + offset + fujilen, LITTLE);
-		readifd(t->btiff + offset + fujioff, &myifd, &fujit);
+	if (!strncmp((const char *)(md->btiff + offset), "FUJIFILM", fujilen)) {
+		fujioff = exif2byte(md->btiff + offset + fujilen, LITTLE);
+		mkrmd.order = LITTLE;
+		readifd(offset + fujioff, &myifd, fuji_tags, &mkrmd);
 	} else
-		readifd(t->btiff + offset, &myifd, t);
+		readifd(offset, &myifd, fuji_tags, &mkrmd);
 
 	return (myifd);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2002, Eric M. Johnston <emj@postal.net>
+ * Copyright (c) 2001-2003, Eric M. Johnston <emj@postal.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: exif.h,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: exif.h,v 1.33 2003/08/06 02:26:42 ejohnst Exp $
  */
 
 /*
@@ -121,6 +121,7 @@ typedef __int32 int32_t;
 #define EXIF_T_EXPOSURE		0x829a
 #define EXIF_T_FNUMBER		0x829d
 #define EXIF_T_EXPPROG		0x8822
+#define EXIF_T_GPSIFD		0x8825
 #define EXIF_T_ISOSPEED		0x8827
 #define EXIF_T_VERSION		0x9000
 #define EXIF_T_COMPCONFIG	0x9101
@@ -154,7 +155,28 @@ typedef __int32 int32_t;
 
 /* Byte order. */
 
-enum order { LITTLE, BIG };
+enum byteorder { LITTLE, BIG };
+
+
+/* Generic field description lookup table. */
+
+struct descrip {
+	int32_t val;
+	const char *descr;
+};
+
+
+/* Tag lookup table. */
+
+struct exiftag {
+	u_int16_t tag;		/* Tag ID. */
+	u_int16_t type;		/* Expected type. */
+	u_int16_t count;	/* Expected count. */
+	unsigned short lvl;	/* Output level. */
+	const char *name;
+	const char *descr;
+	struct descrip *table;	/* Value lookup table. */
+};
 
 
 /* Final Exif property info.  (Note: descr can be NULL.) */
@@ -169,10 +191,31 @@ struct exifprop {
 	char *str;		/* String representation of value (dynamic). */
 	unsigned short lvl;	/* Verbosity level. */
 	int ifdseq;		/* Sequence number of parent IFD. */
-	u_int16_t ifdtag;	/* Parent IFD tag association. */
 	u_int16_t override;	/* Override display of another tag. */
-	int16_t subtag;		/* Index of a tag's sub-value (def: -2). */
+	struct exiftag *tagset;	/* Tags used to create property. */
+	struct exifprop *par;	/* Parent property association. */
 	struct exifprop *next;
+};
+
+
+/*
+ * TIFF/IFD metadata.
+ *
+ * Implementation note: ordinarily, this information wouldn't be stored
+ * at the directory (IFD) level -- it's characteristic of the TIFF itself.
+ * However, the format of some maker notes force this level of detail.
+ * For example, Fuji notes can be in a different byte order than the rest of
+ * the TIFF.  Also, some Nikon notes actually contain a full TIFF header
+ * and specify their own byte order and offset base.
+ *
+ * Therefore, while this information is generally true for the TIFF, it
+ * may not apply to maker note properties.
+ */
+
+struct tiffmeta {
+	enum byteorder order;	/* Endianness of IFD. */
+	unsigned char *btiff;	/* Beginning of TIFF (offset base). */
+	unsigned char *etiff;	/* End of TIFF. */
 };
 
 
@@ -180,17 +223,15 @@ struct exifprop {
 
 struct exiftags {
 	struct exifprop *props;	/* The good stuff. */
+	struct tiffmeta md;	/* Beginning, end, and endianness of TIFF. */
 
-	enum order tifforder;	/* Endianness of TIFF. */
-	unsigned char *btiff;	/* Beginning of TIFF. */
-	unsigned char *etiff;	/* End of TIFF. */
+	const char *model;	/* Camera model, to aid maker tag processing. */
+	short mkrval;		/* Maker index (see makers.h). */
 
 	/* Version info. */
 
 	short exifmaj;		/* Exif version, major. */
 	short exifmin;		/* Exif version, minor. */
-	short mkrval;		/* Maker index (XXX uhh, somewhat opaque). */
-	short mkrinfo;		/* Maker info (XXX uhh, a hack for Nikon). */
 };
 
 
@@ -198,8 +239,10 @@ struct exiftags {
 
 extern int debug;
 extern const char *progname;
+extern struct exiftag tags[];
 
-extern struct exifprop *findprop(struct exifprop *prop, u_int16_t tag);
+extern struct exifprop *findprop(struct exifprop *prop,
+    struct exiftag *tagset, u_int16_t tag);
 extern void exifdie(const char *msg);
 extern void exifwarn(const char *msg);
 extern void exifwarn2(const char *msg1, const char *msg2);

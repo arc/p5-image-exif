@@ -29,18 +29,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nikon.c,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: nikon.c,v 1.17 2003/08/16 03:02:16 ejohnst Exp $
  */
 
 /*
  * Exif tag definitions for Nikon maker notes.
  *
+ * Some information for Nikon D1X support obtained from JoJoThumb, version
+ * 2.7.2 (http://www.jojosoftware.de/jojothumb/).
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "makers.h"
 
@@ -167,30 +168,51 @@ static struct exiftag nikon_tags1[] = {
 };
 
 
+static struct exiftag nikon_tags2[] = {
+	{ 0x0001, TIFF_UNDEF, 4, ED_VRB, "NikonVersion",
+	  "Nikon Note Version", NULL },
+	{ 0x0002, TIFF_SHORT, 2, ED_UNK, "NikonISOSetting",
+	  "ISO Setting", NULL },
+	{ 0x0003, TIFF_ASCII, 0, ED_IMG, "NikonColor",
+	  "Color Mode", NULL },
+	{ 0x0004, TIFF_ASCII, 0, ED_IMG, "NikonQuality",
+	  "Image Quality", NULL },
+	{ 0x0005, TIFF_ASCII, 0, ED_IMG, "NikonWhiteBal",
+	  "White Balance", NULL },
+	{ 0x0006, TIFF_ASCII, 0, ED_IMG, "NikonImgSharp",
+	  "Image Sharpening", NULL },
+	{ 0x0007, TIFF_ASCII, 0, ED_IMG, "NikonFocus",
+	  "Focus Mode", NULL },
+	{ 0x0008, TIFF_ASCII, 0, ED_IMG, "NikonFlash",
+	  "Flash Setting", NULL },
+	{ 0x000b, TIFF_UNKN, 0, ED_UNK, "NikonWhiteBalBias",
+	  "White Balance Bias", NULL },
+	{ 0x0081, TIFF_ASCII, 0, ED_IMG, "NikonImgAdjust",
+	  "Image Adjustment", NULL },
+	{ 0x0088, TIFF_UNDEF, 0, ED_UNK, "NikonAutoFocus",
+	  "Auto Focus Position", NULL },
+	{ 0x0092, TIFF_UNDEF, 0, ED_UNK, "NikonHueAdjust",
+	  "Hue Adjustment", NULL },
+	{ 0xffff, TIFF_UNKN, 0, ED_UNK, "NikonUnknown",
+	  "Nikon Unknown", NULL },
+};
+
+
 /*
  * Process normal Nikon maker note tags.
  */
 static void
 nikon_prop0(struct exifprop *prop, struct exiftags *t)
 {
-	int i;
 	u_int32_t a, b;
-
-	/* Lookup the field name (if known). */
-
-	for (i = 0; nikon_tags0[i].tag < EXIF_T_UNKNOWN &&
-	    nikon_tags0[i].tag != prop->tag; i++);
-	prop->name = nikon_tags0[i].name;
-	prop->descr = nikon_tags0[i].descr;
-	prop->lvl = nikon_tags0[i].lvl;
 
 	switch (prop->tag) {
 
 	/* Manual focus distance. */
 
 	case 0x0085:
-		a = exif4byte(t->btiff + prop->value, t->tifforder);
-		b = exif4byte(t->btiff + prop->value + 4, t->tifforder);
+		a = exif4byte(t->md.btiff + prop->value, t->md.order);
+		b = exif4byte(t->md.btiff + prop->value + 4, t->md.order);
 
 		if (a == b) {
 			snprintf(prop->str, 31, "N/A");
@@ -202,8 +224,8 @@ nikon_prop0(struct exifprop *prop, struct exiftags *t)
 	/* Digital zoom. */
 
 	case 0x0086:
-		a = exif4byte(t->btiff + prop->value, t->tifforder);
-		b = exif4byte(t->btiff + prop->value + 4, t->tifforder);
+		a = exif4byte(t->md.btiff + prop->value, t->md.order);
+		b = exif4byte(t->md.btiff + prop->value + 4, t->md.order);
 
 		if (a == b) {
 			snprintf(prop->str, 31, "None");
@@ -221,27 +243,15 @@ nikon_prop0(struct exifprop *prop, struct exiftags *t)
 static void
 nikon_prop1(struct exifprop *prop, struct exiftags *t)
 {
-	int i;
 	u_int32_t a, b;
-	u_int16_t v = (u_int16_t)prop->value;
-
-	/* Lookup the field name (if known). */
-
-	for (i = 0; nikon_tags1[i].tag < EXIF_T_UNKNOWN &&
-	    nikon_tags1[i].tag != prop->tag; i++);
-	prop->name = nikon_tags1[i].name;
-	prop->descr = nikon_tags1[i].descr;
-	prop->lvl = nikon_tags1[i].lvl;
-	if (nikon_tags1[i].table)
-		prop->str = finddescr(nikon_tags1[i].table, v);
 
 	switch (prop->tag) {
 
 	/* Digital zoom. */
 
 	case 0x000a:
-		a = exif4byte(t->btiff + prop->value, t->tifforder);
-		b = exif4byte(t->btiff + prop->value + 4, t->tifforder);
+		a = exif4byte(t->md.btiff + prop->value, t->md.order);
+		b = exif4byte(t->md.btiff + prop->value + 4, t->md.order);
 
 		if (!a) {
 			snprintf(prop->str, 31, "None");
@@ -260,27 +270,10 @@ void
 nikon_prop(struct exifprop *prop, struct exiftags *t)
 {
 
-	/*
-	 * XXX This is a rather ugly hack, but we don't really have a way
-	 * to figure out which type of Nikon maker note we're dealing with
-	 * (easily).
-	 */
-
-	if (t->mkrinfo)
+	if (prop->tagset == nikon_tags1)
 		nikon_prop1(prop, t);
 	else
 		nikon_prop0(prop, t);
-
-	if (debug) {
-		static int once = 0;	/* XXX Breaks on multiple files. */
-
-		if (!once) {
-			printf("Processing Nikon Maker Note (%d)\n",
-			    t->mkrinfo);
-			once = 1;
-		}
-		dumpprop(prop, NULL);
-	}
 }
 
 
@@ -288,25 +281,62 @@ nikon_prop(struct exifprop *prop, struct exiftags *t)
  * Try to read a Nikon maker note IFD.
  */
 struct ifd *
-nikon_ifd(u_int32_t offset, struct exiftags *t)
+nikon_ifd(u_int32_t offset, struct tiffmeta *md)
 {
 	struct ifd *myifd;
+	unsigned char *b;
+	struct tiffmeta mkrmd;
+
+	b = md->btiff + offset;
+	mkrmd = *md;
 
 	/*
 	 * Seems that some Nikon maker notes start with an ID string.
-	 * Therefore, * try reading the IFD starting at offset + 8
-	 * ("Nikon" + 3).
 	 */
 
-	if (!strcmp(t->btiff + offset, "Nikon")) {
+	if (!strcmp((const char *)b, "Nikon")) {
+		b += 6;
 
-		/* What a hack.  Indicates we need to use nikon_tags1[]. */
-		t->mkrinfo = 1;
+		switch (exif2byte(b, md->order)) {
+		case 0x0001:
+			readifd(offset + 8, &myifd, nikon_tags1, &mkrmd);
+			return (myifd);
 
-		readifd(t->btiff + offset + strlen("Nikon") + 3, &myifd, t);
+		case 0x0200:
+			b += 4;
 
-	} else
-		readifd(t->btiff + offset, &myifd, t);
+			/*
+			 * So, this is interesting: they've put a full-fledged
+			 * TIFF header here.
+			 */
 
+			/* Determine endianness of the TIFF data. */
+
+			if (*((u_int16_t *)b) == 0x4d4d)
+				mkrmd.order = BIG;
+			else if (*((u_int16_t *)b) == 0x4949)
+				mkrmd.order = LITTLE;
+			else {
+				exifwarn("invalid Nikon TIFF header");
+				return (NULL);
+			}
+			mkrmd.btiff = b;	/* Beginning of maker. */
+			b += 2;
+
+			/* Verify the TIFF header. */
+
+			if (exif2byte(b, mkrmd.order) != 42) {
+				exifwarn("invalid Nikon TIFF header");
+				return (NULL);
+			}
+			b += 2;
+
+			readifd(exif4byte(b, mkrmd.order), &myifd,
+			    nikon_tags2, &mkrmd);
+			return (myifd);
+		}
+	}
+
+	readifd(offset, &myifd, nikon_tags0, &mkrmd);
 	return (myifd);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, Eric M. Johnston <emj@postal.net>
+ * Copyright (c) 2002, 2003, Eric M. Johnston <emj@postal.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: makers.c,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: makers.c,v 1.5 2003/08/06 06:28:43 ejohnst Exp $
  */
 
 /*
@@ -44,11 +44,12 @@
 
 struct makerfun makers[] = {
 	{ 0, "unknown", NULL, NULL },		/* default value */
-	{ EXIF_MKR_CANON, "canon", canon_prop, readifds },
+	{ EXIF_MKR_CANON, "canon", canon_prop, canon_ifd },
 	{ EXIF_MKR_OLYMPUS, "olympus", olympus_prop, olympus_ifd },
 	{ EXIF_MKR_FUJI, "fujifilm", fuji_prop, fuji_ifd },
 	{ EXIF_MKR_NIKON, "nikon", nikon_prop, nikon_ifd },
-	{ EXIF_MKR_CASIO, "casio", casio_prop, casio_ifd },
+	{ EXIF_MKR_CASIO, "casio", NULL, casio_ifd },
 	{ EXIF_MKR_MINOLTA, "minolta", minolta_prop, minolta_ifd },
+	{ EXIF_MKR_SANYO, "sanyo", sanyo_prop, sanyo_ifd },
 	{ EXIF_MKR_UNKNOWN, "unknown", NULL, NULL },
 };

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: jpeg.h,v 1.1.1.1 2003/08/07 16:46:05 ccpro Exp $
+ * $Id: jpeg.h,v 1.4 2002/10/15 02:57:09 ejohnst Exp $
  */
 
 /*
