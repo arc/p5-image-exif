@@ -1,15 +1,17 @@
 			=======================
-			Image/EXIF version 0.01
+			Image/EXIF version 0.98.1
 			=======================
 
 
 
-Perl Package Image::EXIF based on utility exiftags v0.97
+Perl Package Image::EXIF based on utility exiftags v0.98
 by Eric M. Johnston, emj@postal.net, http://johnst.org/sw/exiftags/.
 Actually it's just a wrapper. Weak PHP's support of EXIF
 made me write it.
 If you wanna improve it - go ahead. I did this module only
 because nobody did it before.
+
+I decided keep the same version as exiftags has.
 
 INSTALLATION
 
@@ -30,13 +32,13 @@ COPYRIGHT AND LICENCE
 
 all copyrights are shared between all perl users
 
+It's BUGFIX based on Martin Redmond's note
 
 Author's note:
 --------------
 
 If you have any questions, suggestions or need any assistance, please
 let me know!
-
 
 Yours,
 --

@@ -5,7 +5,7 @@
 #include "exif.h"
 #include "jpeg.h"
 
-char error[256];
+static char error[256];
 
 struct exiftags *et = NULL;
 struct exifprop *ep = NULL;
