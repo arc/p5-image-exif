@@ -1,6 +1,43 @@
 Revision history for Perl extension Image::EXIF.
 
 
+98.6  Wed Jan 14 13:53:48 PST 2004
+	HONY (OldNewYear Crazy Russian Custom)
+	* small change in EXIF.xs
+		78c78
+		<                       break;
+		---
+		>                       ;
+		-
+
+	From Rolf Dignatz:
+
+		using the original Image-EXIF-0.98.5:
+
+		file: nikon0001.JPG
+
+		rd debug: read_data: mark = 0xe1    (JPEG_M_APP1)
+		rd debug: exifscan: header='Exif'
+		rd debug: read_data: mark = 0xe1    (JPEG_M_APP1)
+		rd debug: exifscan: header='http://ns.adobe.com/xap/1.0/'
+
+		(null): couldn't find Exif data 
+		
+		As you see in my first debug output there are two 
+		JPEG_M_APP1-marked sections in the nikon jpeg-file
+		and only the first one is the 'real' EXIF section.
+		So I decided to break after the first legal EXIF section.
+
+		Another way might be to read all possibly EXIF sections 
+		and process them all?
+		Similar is the original exiftags-0.98::exiftags.c::doit()
+		(code in line ~ 182) which processes each JPEG_M_APP1-section
+		which leads in a true expression
+
+
+
+	* small fix in create_web_gallery.pl
+
 98.5  Mon Jan 5 11:28:48 PST 2004
 	HNY 
 	* exifgps.c file was missing in package

@@ -1,5 +1,5 @@
 			=======================
-			Image/EXIF version 0.98.5
+			Image/EXIF version 0.98.6
 			=======================
 
 
@@ -11,7 +11,8 @@ made me write it.
 If you wanna improve it - go ahead. I did this module only
 because nobody did it before.
 
-I decided keep the same version as exiftags has.
+I decided keep exiftags version.
+And thanks to all of you who send comments and advises.
 
 INSTALLATION
 
@@ -32,8 +33,6 @@ COPYRIGHT AND LICENCE
 
 It carries a BSD license. Becouse of exiftags does it.
 
-It's BUGFIX based on Martin Redmond's note
-
 Author's note:
 --------------
 
@@ -42,4 +41,4 @@ let me know!
 
 Yours,
 --
-	sergey s prozhogin <ccpro.no-ip.org. http://ccpro.no-ip.org/
+	sergey s prozhogin <ccpro@rrelaxo.org.ru>. http://ccpro.no-ip.org/

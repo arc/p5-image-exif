@@ -19,7 +19,7 @@ sub create_index( $$ );
 sub create_thumbnails( $$ );
 
 my %opt;
-print "create_web_galley.pl --help (v1.2): for help\n";
+print "create_web_galley.pl --help (v1.3): for help\n";
 unless(GetOptions(\%opt, 
 	'no_php', 'table_size=i', 'del_src', 'in_dir=s', 'out_dir=s', 'mask=s', 'thumb_size=i', 'exif') || 
 	exists($opt{help})){
@@ -215,7 +215,7 @@ function toggleInfo() {
 		$image_name =~ s/(.*)\..*/$1/;
 
 		exists($cfg->{no_php})
-		&& print FH qq^
+		|| print FH qq^
 		<?php
                 if(\$dbh = pg_connect($cfg->{php_db_connect})){
 			\$year = split('/', getenv('SCRIPT_NAME'));

@@ -75,7 +75,7 @@ read_data(char *fname)
                 et = exifparse(exifbuf, len);
 
 		if (et && et->props){
-			;
+			break;
 		} else {
 	                exifwarn("couldn't find Exif data");
 			free (exifbuf);
