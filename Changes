@@ -1,5 +1,12 @@
 Revision history for Perl extension Image::EXIF.
 
+
+98.5  Mon Jan 5 11:28:48 PST 2004
+	HNY 
+	* exifgps.c file was missing in package
+	+ also I added script create_web_galley.pl
+	  where you can see how I deal with the package
+
 98.3  Mon Nov 10 11:28:48 PST 2003
 	* bugfix.
 	  EXIF got core dump if jpeg didn't have exif section.

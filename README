@@ -1,5 +1,5 @@
 			=======================
-			Image/EXIF version 0.98.3
+			Image/EXIF version 0.98.5
 			=======================
 
 
@@ -30,7 +30,7 @@ This module requires library:
 
 COPYRIGHT AND LICENCE
 
-all copyrights are shared between all perl users
+It carries a BSD license. Becouse of exiftags does it.
 
 It's BUGFIX based on Martin Redmond's note
 
