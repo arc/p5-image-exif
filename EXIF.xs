@@ -172,25 +172,29 @@ int
 c_get_camera_info()
 CODE:
 	dumplvl = ED_CAM;
-	ep = et->props;
+	if (et)
+		ep = et->props;
 
 int
 c_get_image_info()
 CODE:
 	dumplvl = ED_IMG;
-	ep = et->props;
+	if (et)
+		ep = et->props;
 
 int
 c_get_other_info()
 CODE:
 	dumplvl = ED_VRB;
-	ep = et->props;
+	if (et)
+		ep = et->props;
 
 int
 c_get_unknow_info()
 CODE:
 	dumplvl = ED_UNK;
-	ep = et->props;
+	if (et)
+		ep = et->props;
 
 int
 c_fetch()
