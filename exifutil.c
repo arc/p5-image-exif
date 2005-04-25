@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: exifutil.c,v 1.24 2003/08/08 22:31:32 ejohnst Exp $
+ * $Id: exifutil.c,v 1.26 2004/11/06 18:36:46 ejohnst Exp $
  */
 
 /*
@@ -60,12 +60,9 @@ const char *progname;
 void
 exifdie(const char *msg)
 {
+
 	fprintf(stderr, "%s: %s\n", progname, msg);
-/*
- *
- *  bad call for perl module shuldn't be like that
 	exit(1);
-*/
 }
 
 void
@@ -167,12 +164,38 @@ finddescr(struct descrip *table, u_int16_t val)
 
 	for (i = 0; table[i].val != -1 && table[i].val != val; i++);
 	if (!(c = (char *)malloc(strlen(table[i].descr) + 1)))
-	{
 		exifdie((const char *)strerror(errno));
-		return NULL;
-	}
 	strcpy(c, table[i].descr);
 	return (c);
+}
+
+
+/*
+ * Lookup and append description for a value.
+ * Doesn't do anything if the value is unknown; first adds ", " if dest
+ * contains a value; returns number of bytes added.  len is total size
+ * of destination buffer.
+ */
+int
+catdescr(char *c, struct descrip *table, u_int16_t val, int len)
+{
+	int i, l;
+
+	l = 0;
+	len -= 1;
+	c[len] = '\0';
+
+	for (i = 0; table[i].val != -1 && table[i].val != val; i++);
+	if (table[i].val == -1)
+		return (0);
+
+	if (strlen(c)) {
+		strncat(c, ", ", len - strlen(c));
+		l += 2;
+	}
+	strncat(c, table[i].descr, len - strlen(c));
+	l += strlen(table[i].descr);
+	return (l);
 }
 
 
@@ -199,10 +222,7 @@ newprop(void)
 
 	prop = (struct exifprop *)malloc(sizeof(struct exifprop));
 	if (!prop)
-	{
 		exifdie((const char *)strerror(errno));
-		return NULL;
-	}
 	memset(prop, 0, sizeof(struct exifprop));
 	return (prop);
 }
@@ -325,10 +345,7 @@ readifd(u_int32_t offset, struct ifd **dir, struct exiftag *tagset,
 
 	*dir = (struct ifd *)malloc(sizeof(struct ifd));
 	if (!*dir)
-	{
 		exifdie((const char *)strerror(errno));
-		return 0;
-	}
 
 	(*dir)->num = exif2byte(b + offset, md->order);
 	(*dir)->par = NULL;
@@ -376,6 +393,11 @@ readifds(u_int32_t offset, struct exiftag *tagset, struct tiffmeta *md)
 {
 	struct ifd *firstifd, *curifd;
 
+	/*
+	 * XXX Note: we really should be checking to see if this IFD
+	 * has already been visited...
+	 */
+	
 	/* Fetch our first one. */
 
 	offset = readifd(offset, &firstifd, tagset, md);

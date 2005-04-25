@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: exifint.h,v 1.26 2003/08/06 02:26:42 ejohnst Exp $
+ * $Id: exifint.h,v 1.29 2004/08/20 22:31:45 ejohnst Exp $
  */
 
 /*
@@ -37,7 +37,7 @@
  *
  * Developed using the TIFF 6.0 specification
  * (http://partners.adobe.com/asn/developer/pdfs/tn/TIFF6.pdf)
- * and the EXIF 2.2 standard: (http://tsc.jeita.or.jp/avs/data/cp3451.pdf)
+ * and the EXIF 2.21 standard: (http://tsc.jeita.or.jp/avs/data/cp3451_1.pdf).
  *
  * Definitions internal to the Exif parsing library.
  *
@@ -99,7 +99,7 @@ struct ifd {
 	else if (abs((n)) > abs((d))) snprintf((str), 31, "%.1f", \
 	    (double)(n) / (double)(d)); \
 	else if (abs((d)) > 2 && abs((n)) > 1 && \
-	    ((double)(n) / (double)(d)) >= 0.1) \
+	    (fabs((double)(n) / (double)(d))) >= 0.1) \
 		snprintf((str), 31, "%.1f", (double)(n) / (double)(d)); \
 	else snprintf((str), 31, "%d/%d", (n), (d)); \
 }
@@ -109,7 +109,11 @@ struct ifd {
 
 extern struct fieldtype ftypes[];
 extern struct descrip ucomment[];
-extern struct descrip flashes[];
+extern struct descrip flash_fire[];
+extern struct descrip flash_return[];
+extern struct descrip flash_mode[];
+extern struct descrip flash_func[];
+extern struct descrip flash_redeye[];
 extern struct descrip filesrcs[];
 
 
@@ -121,6 +125,7 @@ extern u_int32_t exif4byte(unsigned char *b, enum byteorder o);
 extern void byte4exif(u_int32_t n, unsigned char *b, enum byteorder o);
 extern int32_t exif4sbyte(unsigned char *b, enum byteorder o);
 extern char *finddescr(struct descrip *table, u_int16_t val);
+extern int catdescr(char *c, struct descrip *table, u_int16_t val, int len);
 extern struct exifprop *newprop(void);
 extern struct exifprop *childprop(struct exifprop *parent);
 extern void exifstralloc(char **str, int len);

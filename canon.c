@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: canon.c,v 1.41 2004/05/07 05:46:06 ejohnst Exp $
+ * $Id: canon.c,v 1.52 2005/01/11 20:12:35 ejohnst Exp $
  */
 
 /*
@@ -37,14 +37,39 @@
  * Developed from http://www.burren.cx/david/canon.html.
  * EOS 1D and 1Ds contributions from Stan Jirman <stanj@phototrek.org>.
  * EOS 10D contributions from Jason Montojo <jason.montojo@rogers.com>.
+ * EOS 20D contributions from Per Kristian Hove <Per.Hove@math.ntnu.no>.
  *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "makers.h"
+
+
+/*
+ * Calculate and format an exposure value ("-n.nn EV").
+ */
+static float
+calcev(char *c, int l, int16_t v)
+{
+#if 0	/* Adjustment seems silly.  If someone complains, I'll reconsider. */
+	int16_t n;
+
+	/*
+	 * XXX 1/3 and 2/3 values seem to be a bit off.  This makes a
+	 * slight adjustment; may want to revisit.
+	 */
+	n = (abs(v) - 32) * (v & 0x8000 ? -1 : 1);
+	if (n == 20 || n == -12) v++;
+	else if (n == -20 || n == 12) v--;
+#endif
+
+	if (c) snprintf(c, l, "%.2f EV", (float)v / 32);
+	return ((float)v / 32);
+}
 
 
 /* Macro mode. */
@@ -91,30 +116,6 @@ static struct descrip canon_flash[] = {
 	{ 6,	"Red-Eye Reduction (On)" },
 	{ 16,	"External Flash" },
 	{ -1,	"Unknown" },
-};
-
-
-/* Flash bias.  Is this ever something other than 0? */
-
-static struct descrip canon_fbias[] = {
-	{ 0x0000,	"0 EV" },
-	{ 0x000c,	"0.33 EV" },
-	{ 0x0010,	"0.50 EV" },
-	{ 0x0014,	"0.67 EV" },
-	{ 0x0020,	"1 EV" },
-	{ 0x002c,	"1.33 EV" },
-	{ 0x0030,	"1.50 EV" },
-	{ 0x0034,	"1.67 EV" },
-	{ 0x0040,	"2 EV" },
-	{ 0xffc0,	"-2 EV" },
-	{ 0xffcc,	"-1.67 EV" },
-	{ 0xffd0,	"-1.50 EV" },
-	{ 0xffd4,	"-1.33 EV" },
-	{ 0xffe0,	"-1 EV" },
-	{ 0xffec,	"-0.67 EV" },
-	{ 0xfff0,	"-0.50 EV" },
-	{ 0xfff4,	"-0.33 EV" },
-	{ -1,		"Unknown" },
 };
 
 
@@ -166,6 +167,10 @@ static struct descrip canon_shoot[] = {
 	{ 9,	"Sports" },
 	{ 10,	"Macro/Close-Up" },
 	{ 11,	"Pan Focus" },
+	{ 19,	"Indoor" },
+	{ 22,	"Underwater" },
+	{ 24,	"Kids & Pets" },
+	{ 25,	"Night Snapshot" },
 	{ -1,	"Unknown" },
 };
 
@@ -205,6 +210,8 @@ static struct descrip canon_iso[] = {
 /* Metering mode. */
 
 static struct descrip canon_meter[] = {
+	{ 0,	"Default" },
+	{ 1,	"Spot" },
 	{ 3,	"Evaluative" },
 	{ 4,	"Partial" },
 	{ 5,	"Center-Weighted" },
@@ -239,6 +246,10 @@ static struct descrip canon_whitebal[] = {
 	{ 7,	"Black & White" },
 	{ 8,	"Shade" },
 	{ 9,	"Manual Temperature" },
+	{ 14,	"Daylight Fluorescent" },
+	{ 15,	"Custom 1" },
+	{ 16,	"Custom 2" },
+	{ 17,	"Underwater" },
 	{ -1,	"Unknown" },
 };
 
@@ -273,7 +284,7 @@ static struct exiftag canon_tags[] = {
 };
 
 
-/* Fields under tag 0x0001. */
+/* Fields under tag 0x0001 (camera settings). */
 
 static struct exiftag canon_tags01[] = {
 	{ 0,  TIFF_SHORT, 0, ED_VRB, "Canon1Len",
@@ -331,19 +342,23 @@ static struct exiftag canon_tags01[] = {
 };
 
 
-/* Fields under tag 0x0004. */
+/* Fields under tag 0x0004 (shot info). */
 
 static struct exiftag canon_tags04[] = {
 	{ 0,  TIFF_SHORT, 0, ED_VRB, "Canon4Len",
 	  "Canon Tag4 Length", NULL },
+	{ 2,  TIFF_SHORT, 0, ED_IMG, "CanonSensorSpeed",
+	  "Sensor ISO Speed", NULL },
+	{ 6,  TIFF_SHORT, 0, ED_IMG, "CanonExpComp",
+	  "Exposure Compensation", NULL },
 	{ 7,  TIFF_SHORT, 0, ED_IMG, "CanonWhiteB",
 	  "White Balance", canon_whitebal },
 	{ 9,  TIFF_SHORT, 0, ED_IMG, "CanonSequence",
 	  "Sequence Number", NULL },
 	{ 14, TIFF_SHORT, 0, ED_UNK, "CanonAFPoint2",
 	  "Autofocus Point", NULL },
-	{ 15, TIFF_SHORT, 0, ED_VRB, "CanonFlashBias",
-	  "Flash Bias", canon_fbias },
+	{ 15, TIFF_SHORT, 0, ED_IMG, "CanonFlashBias",
+	  "Flash Bias", NULL },
 	{ 19, TIFF_SHORT, 0, ED_IMG, "CanonSubjDst",
 	  "Subject Distance", NULL },
 	{ 0xffff, TIFF_SHORT, 0, ED_UNK, "Canon04Unknown",
@@ -651,6 +666,37 @@ static struct descrip ccstm_assistbut[] = {
 	{ -1,	"Unknown" },
 };
 
+static struct descrip ccstm_20dexplvl[] = {
+	{ 0,	"1/3 Stop" },
+	{ 1,	"1/2 Stop" },
+	{ -1,	"Unknown" },
+};
+
+static struct descrip ccstm_20dflashsync[] = {
+	{ 0,	"Auto" },
+	{ 1,	"1/250 (Fixed)" },
+	{ -1,	"Unknown" },
+};
+
+static struct descrip ccstm_20dflash[] = {
+	{  0,	"Fires" },
+	{  1,	"Does Not Fire" },
+	{ -1,	"Unknown" },
+};
+
+static struct descrip ccstm_20dafpsel[] = {
+	{  0,	"Normal" },
+	{  1,	"Multi-Controller Direct" },
+	{  2,	"Quick Control Dial Direct" },
+	{ -1,	"Unknown" },
+};
+
+static struct descrip ccstm_20dettl[] = {
+	{  0,	"Evaluative" },
+	{  1,	"Average" },
+	{ -1,	"Unknown" },
+};
+
 
 /* D30/D60 custom functions. */
 
@@ -780,6 +826,49 @@ static struct exiftag canon_10dcustom[] = {
 	  "Canon 10D Custom Unknown", NULL },
 };
 
+/* 20D custom functions. */
+
+static struct exiftag canon_20dcustom[] = {
+	{ 0,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "SET button function when shooting", ccstm_10dsetbut },
+	{ 1,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Long exposure noise reduction", ccstm_offon },
+	{ 2,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Flash sync speed in Av mode", ccstm_20dflashsync },
+	{ 3,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Shutter button/AE lock button", ccstm_10dshutter },
+	{ 4,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "AF-assist beam", ccstm_assistflash },
+	{ 5,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Exposure level increments", ccstm_20dexplvl },
+	{ 6,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Flash firing", ccstm_20dflash },
+	{ 7,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "ISO expansion", ccstm_offon },
+	{ 8,  TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "AEB sequence/auto cancellation", ccstm_aebseq },
+	{ 9, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Superimposed display", ccstm_onoff },
+	{ 10, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Menu button display position", ccstm_10dmenubut },
+	{ 11, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Mirror lockup", ccstm_disen },
+	{ 12, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "AF point selection method", ccstm_20dafpsel },
+	{ 13, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "E-TTL II", ccstm_20dettl },
+	{ 14, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Shutter curtain sync", ccstm_shutsync },
+	{ 15, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Safety shift in Av or Tv", ccstm_disen },
+	{ 16, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Lens AF stop button", ccstm_lensaf1 },
+	{ 17, TIFF_SHORT, 0, ED_VRB, "20DCustom",
+	  "Add original decision data", ccstm_offon },
+	{ 0xffff, TIFF_SHORT, 0, ED_UNK, "20DCustomUnknown",
+	  "Canon 20D Custom Unknown", NULL },
+};
+
 
 /*
  * Process maker note tag 0x0001 values.
@@ -799,7 +888,7 @@ canon_prop01(struct exifprop *aprop, struct exifprop *prop,
 	case 5:
 		/* Change "Single" to "Timed" if #2 > 0. */
 
-		if (!v && exif2byte(off + 2 * 2, t->md.order))
+		if (!v && exif2byte(off + 2 * 2, t->mkrmd.order))
 			strcpy(aprop->str, "Timed");
 		break;
 	case 12:
@@ -813,8 +902,8 @@ canon_prop01(struct exifprop *aprop, struct exifprop *prop,
 		if (v == 3 && prop->count >= 37) {
 			exifstralloc(&aprop->str, 32);
 			snprintf(aprop->str, 31, "x%.1f", 2 *
-			    (float)exif2byte(off + 37 * 2, t->md.order) /
-			    (float)exif2byte(off + 36 * 2, t->md.order));
+			    (float)exif2byte(off + 37 * 2, t->mkrmd.order) /
+			    (float)exif2byte(off + 36 * 2, t->mkrmd.order));
 		} else
 			aprop->str = finddescr(canon_dzoom, v);
 		break;
@@ -833,6 +922,10 @@ canon_prop01(struct exifprop *aprop, struct exifprop *prop,
 			break;
 		}
 		aprop->override = EXIF_T_METERMODE;
+		break;
+	case 20:
+		/* With "Easy Shooting", shooting mode is all that matters. */
+		aprop->lvl = v ? ED_IMG : ED_VRB;
 		break;
 	default:
 		return (FALSE);
@@ -854,11 +947,23 @@ canon_prop04(struct exifprop *aprop, struct exifprop *prop,
 	int d;
 
 	switch (aprop->tag) {
+	case 6:
+		/* Calculate sensor speed (ISO units). */
+		exifstralloc(&aprop->str, 32);
+		snprintf(aprop->str, 31, "%d", (int)(exp(calcev(NULL, 0, v) *
+		    log(2)) * 100.0 / 32.0 + 0.5));
+		break;
+		
 	case 7:
 		aprop->override = EXIF_T_WHITEBAL;
 		break;
 	case 9:
 		aprop->lvl = v ? ED_IMG : ED_VRB;
+		break;
+	case 15:
+		exifstralloc(&aprop->str, 16);
+		if (calcev(aprop->str, 15, v) == 0.0)
+			aprop->lvl = ED_VRB;
 		break;
 
 	/*
@@ -943,11 +1048,11 @@ canon_subval(struct exifprop *prop, struct exiftags *t,
 	int i, j;
 	u_int16_t v;
 	struct exifprop *aprop;
-	unsigned char *off = t->md.btiff + prop->value;
+	unsigned char *off = t->mkrmd.btiff + prop->value;
 
 	/* Check size of tag (first value) if we're not debugging. */
 
-	if (valfun && exif2byte(off, t->md.order) != 2 * prop->count) {
+	if (valfun && exif2byte(off, t->mkrmd.order) != 2 * prop->count) {
 		exifwarn("Canon maker tag appears corrupt");
 		return (FALSE);
 	}
@@ -957,7 +1062,7 @@ canon_subval(struct exifprop *prop, struct exiftags *t,
 		    prop->name, prop->tag, prop->count);
 
 	for (i = 0; i < (int)prop->count; i++) {
-		v = exif2byte(off + i * 2, t->md.order);
+		v = exif2byte(off + i * 2, t->mkrmd.order);
 
 		aprop = childprop(prop);
 		aprop->value = (u_int32_t)v;
@@ -1077,7 +1182,7 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 {
 	unsigned char *offset;
 	u_int16_t flmin = 0, flmax = 0, flunit = 0;
-	u_int32_t v;
+	u_int32_t v, w;
 	struct exifprop *tmpprop;
 
 	switch (prop->tag) {
@@ -1095,10 +1200,10 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 		 */
 
 		if (prop->count >= 25) {
-			offset = t->md.btiff + prop->value;
-			flmax = exif2byte(offset + 23 * 2, t->md.order);
-			flmin = exif2byte(offset + 24 * 2, t->md.order);
-			flunit = exif2byte(offset + 25 * 2, t->md.order);
+			offset = t->mkrmd.btiff + prop->value;
+			flmax = exif2byte(offset + 23 * 2, t->mkrmd.order);
+			flmin = exif2byte(offset + 24 * 2, t->mkrmd.order);
+			flunit = exif2byte(offset + 25 * 2, t->mkrmd.order);
 		}
 
 		if (flunit && (flmin || flmax)) {
@@ -1137,10 +1242,52 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 		}
 		break;
 
+	/* Number of actuations. */
+
 	case 0x0093:
+		/*
+		 * Alas, meanings of these fields seem to differ according
+		 * to camera model.  For the 1D, 1Ds, and 1D2, they are total
+		 * number of actuations.  For the 20D, they're the image
+		 * number.  For now, we'll make the former behavior default
+		 * and the latter an exception.
+		 */
+
+		if (!t->model) {
+			exifwarn("Canon model unset; please report to author");
+			break;
+		}
+
 		if (!canon_subval(prop, t, canon_tags93, NULL))
 			break;
 		v = 0;
+
+		if (strstr(t->model, "20D")) {
+
+			/* Image number is in two shorts... */
+
+			if ((tmpprop = findprop(t->props, canon_tags93, 1))) {
+				v = tmpprop->value >> 6;
+				w = (tmpprop->value & 0x3f) << 8;
+
+				if ((tmpprop = findprop(prop, canon_tags93, 2)))
+					w += tmpprop->value;
+				else {
+					v = 0;
+					w = 0;
+				}
+			}
+
+			if (v) {
+				tmpprop = childprop(prop);
+				tmpprop->name = "ImgNum";
+				tmpprop->descr = "Image Number";
+				tmpprop->lvl = ED_IMG;
+				exifstralloc(&tmpprop->str, 32);
+				snprintf(tmpprop->str, 31, "%03d-%04d", v, w);
+			}
+			break;
+		}
 
 		/* Number of acuations is in two shorts... */
 
@@ -1165,6 +1312,8 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 	/* Image number. */
 
 	case 0x0008:
+		if (!prop->value)
+			prop->lvl = ED_VRB;
 		exifstralloc(&prop->str, 32);
 		snprintf(prop->str, 31, "%03d-%04d", prop->value / 10000,
 		    prop->value % 10000);
@@ -1193,18 +1342,21 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 		}
 
 		if (strstr(t->model, "10D"))
-			canon_custom(prop, t->md.btiff + prop->value,
-			    t->md.order, canon_10dcustom);
+			canon_custom(prop, t->mkrmd.btiff + prop->value,
+			    t->mkrmd.order, canon_10dcustom);
 		else if (strstr(t->model, "D30") || strstr(t->model, "D60"))
-			canon_custom(prop, t->md.btiff + prop->value,
-			    t->md.order, canon_d30custom);
+			canon_custom(prop, t->mkrmd.btiff + prop->value,
+			    t->mkrmd.order, canon_d30custom);
+		else if (strstr(t->model, "20D"))
+			canon_custom(prop, t->mkrmd.btiff + prop->value,
+			    t->mkrmd.order, canon_20dcustom);
 		else
-			exifwarn2("Custom function unsupported for %s; please "
+			exifwarn2("Custom function unsupported; please "
 			    "report to author", t->model);
 		break;
 
 	case 0x0090:
-		canon_custom(prop, t->md.btiff + prop->value, t->md.order,
+		canon_custom(prop, t->mkrmd.btiff + prop->value, t->mkrmd.order,
 		    canon_1dcustom);
 		break;
 
@@ -1224,6 +1376,8 @@ canon_prop(struct exifprop *prop, struct exiftags *t)
 struct ifd *
 canon_ifd(u_int32_t offset, struct tiffmeta *md)
 {
+	struct ifd *myifd;
 
-	return(readifds(offset, canon_tags, md));
+	readifd(offset, &myifd, canon_tags, md);
+	return(myifd);
 }

@@ -57,7 +57,7 @@ my $cfg = {
 
 	style		=> 'Font-Size: 8pt; Font-Family: verdana,Arial; Font-Weight: bold;',
 
-	php_db_connect	=> '"dbname=db_name user=user_name"',
+	php_db_connect	=> '"dbname=databasename user=username"',
 };
 
 $cfg->{d} = undef;
@@ -126,7 +126,8 @@ sub create_pages( $$ )
 
 	my $exif = new Image::EXIF;
 
-	for( my $i=0; $i < @$list; $i ++ ){
+	for( my $i=0; $i < @$list; $i ++ )
+	{
 		@html = ();
 		open FH, ">$cfg->{out_dir}/pages/$list->[$i].$ext" or 
 			die "can not create $cfg->{out_dir}/pages/$list->[$i].$ext\n";

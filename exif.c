@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2003, Eric M. Johnston <emj@postal.net>
+ * Copyright (c) 2001-2005, Eric M. Johnston <emj@postal.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: exif.c,v 1.63 2004/04/03 22:34:14 ejohnst Exp $
+ * $Id: exif.c,v 1.74 2005/01/04 23:28:25 ejohnst Exp $
  */
 
 /*
@@ -58,6 +58,7 @@
 
 #define OLYMPUS_BUGS		/* Work around Olympus stupidity. */
 #define WINXP_BUGS		/* Work around Windows XP stupidity. */
+#define SIGMA_BUGS		/* Work around Sigma stupidity. */
 #define UNCREDITED_BUGS		/* Work around uncredited stupidity. */
 
 
@@ -89,6 +90,7 @@ readtag(struct field *afield, int ifdseq, struct ifd *dir, struct exiftags *t,
 	prop->tag = exif2byte(afield->tag, dir->md.order);
 	prop->type = exif2byte(afield->type, dir->md.order);
 	prop->count = exif4byte(afield->count, dir->md.order);
+	/* XXX Makes dealing with two shorts somewhat messy. */
 	if ((prop->type == TIFF_SHORT || prop->type == TIFF_SSHORT) &&
 	    prop->count <= 1)
 		prop->value = exif2byte(afield->value, dir->md.order);
@@ -141,10 +143,18 @@ readtag(struct field *afield, int ifdseq, struct ifd *dir, struct exiftags *t,
 		    )
 			exifwarn2("field type mismatch", prop->name);
 
-		/* Check the field count. */
+		/*
+		 * Check the field count.
+		 * XXX For whatever the reason, Sigma doesn't follow the
+		 * spec on count for FileSource.
+		 */
 
 		if (prop->tagset[i].count && prop->tagset[i].count !=
+#ifdef SIGMA_BUGS
+		    prop->count && prop->tag != EXIF_T_FILESRC)
+#else
 		    prop->count)
+#endif
 			exifwarn2("field count mismatch", prop->name);
 	}
 
@@ -182,12 +192,17 @@ readtags(struct ifd *dir, int seq, struct exiftags *t, int domkr)
 	int i;
 
 	if (debug) {
+		/* XXX Byte order info can be off for maker notes. */
 		if (dir->par && dir->par->tag != EXIF_T_UNKNOWN) {
-			printf("Processing %s directory, %d entries\n",
-			    dir->par->name, dir->num);
+			printf("Processing %s directory, %d entries, "
+			    "%s-endian\n",
+			    dir->par->name, dir->num, dir->md.order == BIG ?
+			    "big" : "little");
 		} else
-			printf("Processing directory %d, %d entries\n",
-			    seq, dir->num);
+			printf("Processing directory %d, %d entries, "
+			    "%s-endian\n",
+			    seq, dir->num, dir->md.order == BIG ? "big" :
+			    "little");
 	}
 
 	for (i = 0; i < dir->num; i++)
@@ -218,7 +233,6 @@ postprop(struct exifprop *prop, struct exiftags *t)
 
 	/*
 	 * Process tags from special IFDs.
-	 * XXX Don't properly pass IFD byte order here.
 	 */
 
 	if (prop->par && prop->par->tagset == tags) {
@@ -332,12 +346,26 @@ postprop(struct exifprop *prop, struct exiftags *t)
 
 	/* Flash consists of a number of bits, which expanded with v2.2. */
 
+#define LFLSH 96
+
 	case EXIF_T_FLASH:
 		if (t->exifmaj <= 2 && t->exifmin < 20)
 			v = (u_int16_t)(prop->value & 0x7);
 		else
 			v = (u_int16_t)(prop->value & 0x7F);
-		prop->str = finddescr(flashes, v);
+
+		exifstralloc(&prop->str, LFLSH);
+
+		/* Don't do anything else if there isn't a flash. */
+
+		if (catdescr(prop->str, flash_func, (u_int16_t)(v & 0x20),
+		    LFLSH))
+			break;
+
+		catdescr(prop->str, flash_fire, (u_int16_t)(v & 0x01), LFLSH);
+		catdescr(prop->str, flash_mode, (u_int16_t)(v & 0x18), LFLSH);
+		catdescr(prop->str, flash_redeye, (u_int16_t)(v & 0x40), LFLSH);
+		catdescr(prop->str, flash_return, (u_int16_t)(v & 0x06), LFLSH);
 		break;
 
 	case EXIF_T_FOCALLEN:
@@ -392,9 +420,30 @@ tweaklvl(struct exifprop *prop, struct exiftags *t)
 	if (prop->type == TIFF_ASCII &&
 	    (prop->lvl & (ED_CAM | ED_IMG | ED_PAS))) {
 		c = prop->str;
-		while (c && *c && isspace((int)*c)) c++;
+		while (c && *c && (isspace((int)*c) ||
+		    (unsigned char)*c < ' ')) c++;
 		if (!c || !*c)
 			prop->lvl = ED_VRB;
+	}
+
+	/*
+	 * Don't let unprintable characters slip through -- we'll just replace
+	 * them with '_'.  (Can see this with some corrupt maker notes.)
+	 * Remove trailing whitespace while we're at it.
+	 */
+
+	if (prop->str && prop->type == TIFF_ASCII) {
+		c = prop->str;
+		while (*c) {
+			/* Catch those pesky chars > 127. */
+			if ((unsigned char)*c < ' ')
+				*c = '_';
+			c++;
+		}
+
+		c = prop->str + strlen(prop->str);
+		while (c > prop->str && isspace((int)*(c - 1))) --c;
+		*c = '\0';
 	}
 
 	/*
@@ -502,22 +551,14 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 	/* Record the Exif version. */
 
 	case EXIF_T_VERSION:
-		/* These contortions are to make 0220 = 2.20. */
-		exifstralloc(&prop->str, 8);
-
-		/* Platform byte order affects this... */
-
-		i = 1;
-		if (*(char *)&i == 1)
-			strncpy(buf, (const char *)&prop->value, 4);
-		else
-			for (i = 0; i < 4; i++)
-				buf[i] = ((const char *)&prop->value)[3 - i];
+		byte4exif(prop->value, (unsigned char *)buf, o);
 		buf[4] = '\0';
 		t->exifmin = (short)atoi(buf + 2);
 		buf[2] = '\0';
 		t->exifmaj = (short)atoi(buf);
-		snprintf(prop->str, 7, "%d.%d", t->exifmaj, t->exifmin);
+
+		exifstralloc(&prop->str, 8);
+		snprintf(prop->str, 7, "%d.%02d", t->exifmaj, t->exifmin);
 		break;
 
 	/* Process a maker note. */
@@ -526,7 +567,10 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 		if (!domkr)
 			return;
 
-		md = &dir->md;
+		/* Maker function can change metadata if necessary. */
+
+		t->mkrmd = dir->md;
+		md = &t->mkrmd;
 		while (dir->next)
 			dir = dir->next;
 
@@ -644,22 +688,32 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 	}
 
 	/*
-	 * ASCII types: sanity check the offset.
-	 * (InteroperabilityOffset has an odd ASCII value.)
+	 * ASCII types.
 	 */
 
-	if (prop->type == TIFF_ASCII &&
-	    (prop->value + prop->count <=
-	    (u_int32_t)(dir->md.etiff - btiff))) {
-		exifstralloc(&prop->str, prop->count + 1);
-		strncpy(prop->str, (const char *)(btiff + prop->value),
-		    prop->count);
-		return;
+	if (prop->type == TIFF_ASCII) {
+		/* Should fit in the value field. */
+		if (prop->count < 5) {
+			exifstralloc(&prop->str, 5);
+			byte4exif(prop->value, (unsigned char *)prop->str, o);
+			return;
+		}
+
+		/* Sanity check the offset. */
+		if ((prop->value + prop->count <=
+		    (u_int32_t)(dir->md.etiff - btiff))) {
+			exifstralloc(&prop->str, prop->count + 1);
+			strncpy(prop->str, (const char *)(btiff + prop->value),
+			    prop->count);
+			return;
+		}
 	}
 
 	/*
 	 * Rational types.  (Note that we'll redo some in our later pass.)
 	 * We'll reduce and simplify the fraction.
+	 *
+	 * XXX Misses multiple rationals.
 	 */
 
 	if ((prop->type == TIFF_RTNL || prop->type == TIFF_SRTNL) &&
@@ -687,10 +741,13 @@ parsetag(struct exifprop *prop, struct ifd *dir, struct exiftags *t, int domkr)
 	 * XXX For now, we're going to ignore tags with count > 8.  Maker
 	 * note tags frequently consist of many shorts; we don't really
 	 * want to be spitting these out.  (Plus, TransferFunction is huge.)
+	 *
+	 * XXX Note that this doesn't apply to two shorts, which are
+	 * stuffed into the value.
 	 */
 
 	if ((prop->type == TIFF_SHORT || prop->type == TIFF_SSHORT) &&
-	    prop->count > 1 && (prop->value + prop->count * 2 <=
+	    prop->count > 2 && (prop->value + prop->count * 2 <=
 	    (u_int32_t)(dir->md.etiff - btiff))) {
 
 		if (prop->count > 8)
@@ -773,9 +830,9 @@ exifscan(unsigned char *b, int len, int domkr)
 
 	/* Determine endianness of the TIFF data. */
 
-	if (*((u_int16_t *)b) == 0x4d4d)
+	if (!memcmp(b, "MM", 2))
 		t->md.order = BIG;
-	else if (*((u_int16_t *)b) == 0x4949)
+	else if (!memcmp(b, "II", 2))
 		t->md.order = LITTLE;
 	else {
 		exifwarn("invalid TIFF header");

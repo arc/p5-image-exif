@@ -57,7 +57,7 @@ my $cfg = {
 
 	style		=> 'Font-Size: 8pt; Font-Family: verdana,Arial; Font-Weight: bold;',
 
-	php_db_connect	=> '"dbname=db_name user=user_name"',
+	php_db_connect	=> '"dbname=photos user=ccpro"',
 };
 
 $cfg->{d} = undef;

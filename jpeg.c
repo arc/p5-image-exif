@@ -94,10 +94,7 @@ jpg1byte(void)
 
 	b = fgetc(infile);
 	if (b == EOF)
-	{
 		exifdie("invalid JPEG format");
-		return 0;
-	}
 	return (b);
 }
 
@@ -113,10 +110,7 @@ jpg2byte(void)
 	b1 = fgetc(infile);
 	b2 = fgetc(infile);
 	if (b1 == EOF || b2 == EOF)
-	{
 		exifdie("invalid JPEG format");
-		return 0;
-	}
 
 	return ((b1 << 8) | b2);
 }
@@ -133,10 +127,7 @@ mkrlen(void)
 	/* Length includes itself. */
 
 	if ((l = jpg2byte()) < 2)
-	{
 		exifdie("invalid JPEG marker (length mismatch)");
-		return 0;
-	}
 	return (l - 2);
 }
 
@@ -182,10 +173,7 @@ nxtmkr(void)
 	/* Read until we see JPEG_MARKER. */
 
 	while ((b = jpg1byte()) != JPEG_M_BEG)
-		return 0;
-/*
 		bad++;
-/*
 
 	/* Read all JPEG_M_BEGs (which may be used for padding). */
 
@@ -222,10 +210,7 @@ sofmrk(int mark)
 	/* Verify length. */
 
 	if (l != (unsigned int)(6 + jpg_cmpnts * 3))
-	{
 		exifdie("invalid JPEG SOF marker (length mismatch)");
-		return;
-	}
 
 	/* Skip over component info we don't care about. */
 
@@ -252,10 +237,7 @@ jpegscan(FILE *fp, int *mark, unsigned int *len, int first)
 		exifwarn("doesn't appear to be a JPEG file; "
 		    "searching for start of image");
 		if (nxtmkr() != JPEG_M_SOI)
-		{
 			exifdie("start of image not found");
-			return FALSE;
-		}
 	}
 
 	/* Look for interesting markers. */

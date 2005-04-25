@@ -1,5 +1,9 @@
 Revision history for Perl extension Image::EXIF.
 
+1.00.2 Mod Apr 25 15:36 PST 2005
+	Mr Eric Johnston released new version of his library which is 1.00.
+	So did we!
+
 99.4  Thu Aug 12 21:42 PST 2004
 (-)	Fix
 	Martijn van de Streek found a bug and sent a patch. Below his note:
@@ -18,7 +22,7 @@ Revision history for Perl extension Image::EXIF.
 
 99.1  Fri May 21 14:40 PST 2004
 	Mr Eric Johnston released new version of his library which is 0.99.1
-	So do we!
+	So did we!
 
 	From now I'm gonna rename exif.c to _exif.c to allow compile and use
 	this package for Win & Mac perl cookers.

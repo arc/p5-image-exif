@@ -30,15 +30,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: panasonic.c,v 1.4 2004/04/21 19:30:59 ejohnst Exp $
+ * $Id: panasonic.c,v 1.6 2004/12/28 17:33:22 ejohnst Exp $
  *
  */ 
 
 /*
  * Exif tag definitions for Panasonic Lumix maker notes.
- * Tags deciphered by Tom Hughes <tom@compton.nu>.
+ * Tags deciphered by Tom Hughes <tom@compton.nu>; updated for FZ20
+ * by Laurent Monin <zas@norz.org> & Lee Kindness <lkindness@csl.co.uk>.
  *
- * Tested models: DMC-FZ10.
+ * Tested models: DMC-FZ10, DMC-FZ20.
  *
  */
 
@@ -67,6 +68,15 @@ static struct descrip panasonic_whitebal[] = {
 	{ 4,	"Halogen" },
 	{ 5,	"Manual" },
 	{ 8,	"Flash" },
+	{ -1,	"Unknown" },
+};
+
+
+/* Focus mode. */
+
+static struct descrip panasonic_focus[] = {
+	{ 1,	"Auto" },
+	{ 2,	"Manual" },
 	{ -1,	"Unknown" },
 };
 
@@ -103,6 +113,7 @@ static struct descrip panasonic_macro[] = {
 
 static struct descrip panasonic_shoot[] = {
 	{ 2,	"Portrait" },
+	{ 3,	"Scenery" },
 	{ 4,	"Sports" },
 	{ 5,	"Night Portrait" },
 	{ 6,	"Program" },
@@ -111,6 +122,10 @@ static struct descrip panasonic_shoot[] = {
 	{ 9,	"Macro" },
 	{ 11,	"Manual" },
 	{ 13,	"Panning" },
+	{ 18,	"Fireworks" },
+	{ 19,	"Party" },
+	{ 20,	"Snow" },
+	{ 21,	"Night Scenery" },
 	{ -1,	"Unknown" },
 };
 
@@ -124,44 +139,6 @@ static struct descrip panasonic_audio[] = {
 };
 
 
-/* Flash bias. */
-
-static struct descrip panasonic_fbias[] = {
-	{ 0x0000,	"0 EV" },
-	{ 0x0001,	"0.33 EV" },
-	{ 0x0002,	"0.67 EV" },
-	{ 0x0003,	"1 EV" },
-	{ 0x0004,	"1.33 EV" },
-	{ 0x0005,	"1.67 EV" },
-	{ 0x0006,	"2 EV" },
-	{ 0xfffa,	"-2 EV" },
-	{ 0xfffb,	"-1.67 EV" },
-	{ 0xfffc,	"-1.33 EV" },
-	{ 0xfffd,	"-1 EV" },
-	{ 0xfffe,	"-0.67 EV" },
-	{ 0xffff,	"-0.33 EV" },
-	{ -1,		"Unknown" },
-};
-
-
-/* White balance adjust. */
-
-static struct descrip panasonic_wbadjust[] = {
-	{ 0x0000,	"0" },
-	{ 0x0001,	"+1" },
-	{ 0x0002,	"+2" },
-	{ 0x0003,	"+3" },
-	{ 0x0004,	"+4" },
-	{ 0x0005,	"+5" },
-	{ 0xfffb,	"-5" },
-	{ 0xfffc,	"-4" },
-	{ 0xfffd,	"-3" },
-	{ 0xfffe,	"-2" },
-	{ 0xffff,	"-1" },
-	{ -1,		"Unknown" },
-};
-
-
 /* Color effect. */
 
 static struct descrip panasonic_color[] = {
@@ -169,6 +146,17 @@ static struct descrip panasonic_color[] = {
 	{ 2,	"Warm" },
 	{ 3,	"Cool" },
 	{ 4,	"Black & White" },
+	{ 5,	"Sepia" },
+	{ -1,	"Unknown" },
+};
+
+
+/* Contrast & noise. */
+
+static struct descrip panasonic_range[] = {
+	{ 0,	"Standard" },
+	{ 1,	"Low" },
+	{ 2,	"High" },
 	{ -1,	"Unknown" },
 };
 
@@ -180,6 +168,8 @@ static struct exiftag panasonic_tags0[] = {
 	  "Image Quality", panasonic_quality },
 	{ 0x0003, TIFF_SHORT, 1, ED_IMG, "PanasonicWhiteB",
 	  "White Balance", panasonic_whitebal },
+	{ 0x0007, TIFF_SHORT, 1, ED_IMG, "PanasonicFocus",
+	  "Focus Mode", panasonic_focus },
 	{ 0x000f, TIFF_BYTE, 1, ED_IMG, "PanasonicSpotMode",
 	  "Spot Mode", panasonic_spot },
 	{ 0x001a, TIFF_SHORT, 1, ED_IMG, "PanasonicOIS",
@@ -187,15 +177,19 @@ static struct exiftag panasonic_tags0[] = {
 	{ 0x001c, TIFF_SHORT, 1, ED_IMG, "PanasonicMacroMode",
 	  "Macro Mode", panasonic_macro },
 	{ 0x001f, TIFF_SHORT, 1, ED_IMG, "PanasonicShootMode",
-	  "Shooting Mode", panasonic_shoot }, 
+	  "Shooting Mode", panasonic_shoot },
 	{ 0x0020, TIFF_SHORT, 1, ED_IMG, "PanasonicAudio",
 	  "Audio", panasonic_audio },
 	{ 0x0023, TIFF_SHORT, 1, ED_UNK, "PanasonicWBAdjust",
-	  "White Balance Adjust", panasonic_wbadjust },
+	  "White Balance Adjust", NULL },
 	{ 0x0024, TIFF_SSHORT, 1, ED_IMG, "PanasonicFlashBias",
-	  "Flash Bias", panasonic_fbias },
+	  "Flash Bias", NULL },
 	{ 0x0028, TIFF_SHORT, 1, ED_IMG, "PanasonicColorEffect",
 	  "Color Effect", panasonic_color },
+	{ 0x002c, TIFF_SHORT, 1, ED_IMG, "PanasonicContrast",
+	  "Contrast", panasonic_range },
+	{ 0x002d, TIFF_SHORT, 1, ED_IMG, "PanasonicNoiseReduce",
+	  "Noise Reduction", panasonic_range },
 	{ 0xffff, TIFF_UNKN, 0, ED_UNK, "PanasonicUnknown",
 	  "Panasonic Unknown", NULL },
 };
@@ -208,14 +202,32 @@ void
 panasonic_prop(struct exifprop *prop, struct exiftags *t)
 {
 
-	/* Override standard tags. */
-
 	switch (prop->tag) {
 
 	/* White balance. */
 
 	case 0x0003:
 		prop->override = EXIF_T_WHITEBAL;
+		break;
+
+	/* White balance adjust (unknown). */
+
+	case 0x0023:
+		exifstralloc(&prop->str, 10);
+		snprintf(prop->str, 9, "%d", (int16_t)prop->value);
+		break;
+
+	/* Flash bias. */
+
+	case 0x0024:
+		exifstralloc(&prop->str, 10);
+		snprintf(prop->str, 9, "%.2f EV", (int16_t)prop->value / 3.0);
+		break;
+
+	/* Contrast. */
+
+	case 0x002c:
+		prop->override = EXIF_T_CONTRAST;
 		break;
 	}
 }
