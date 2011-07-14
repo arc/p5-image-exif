@@ -20,3 +20,4 @@ minolta.c
 nikon.c
 olympus.c
 tagdefs.c
+META.yml                                 Module meta-data (added by MakeMaker)

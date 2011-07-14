@@ -205,8 +205,8 @@ PPCODE:
 	char field[256] = "";
 	char value[256] = "";
 
-	int rc = get_props(field, value);
-	if (rc){
+	if (ep) {
+		int rc = get_props(field, value);
 		EXTEND(sp, 2);
 		PUSHs(sv_2mortal(newSVpv((char*)field, 0)));
 		PUSHs(sv_2mortal(newSVpv((char*)value, 0)));

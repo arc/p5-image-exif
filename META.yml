@@ -1,0 +1,21 @@
+--- #YAML:1.0
+name:               Image-EXIF
+version:            1.00.4
+abstract:           Perl extension for exif library
+author:
+    - sergey s prozhogin <ccpro@rrelaxo.org.ru>
+license:            unknown
+distribution_type:  module
+configure_requires:
+    ExtUtils::MakeMaker:  0
+build_requires:
+    ExtUtils::MakeMaker:  0
+requires:  {}
+no_index:
+    directory:
+        - t
+        - inc
+generated_by:       ExtUtils::MakeMaker version 6.57_05
+meta-spec:
+    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
+    version:  1.4

@@ -37,6 +37,10 @@
  *
  */
 
+#include "EXTERN.h"
+#include "perl.h"
+#include "XSUB.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -61,22 +65,21 @@ void
 exifdie(const char *msg)
 {
 
-	fprintf(stderr, "%s: %s\n", progname, msg);
-	exit(1);
+	croak("%s: %s\n", progname, msg);
 }
 
 void
 exifwarn(const char *msg)
 {
 
-	fprintf(stderr, "%s: %s\n", progname, msg);
+	warn("%s: %s\n", progname, msg);
 }
 
 void
 exifwarn2(const char *msg1, const char *msg2)
 {
 
-	fprintf(stderr, "%s: %s (%s)\n", progname, msg1, msg2);
+	warn("%s: %s (%s)\n", progname, msg1, msg2);
 }
 
 
