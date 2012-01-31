@@ -1,6 +1,6 @@
 Changes
 EXIF.pm
-EXIF.xs
+Image-EXIF.xs
 Makefile.PL
 MANIFEST
 README
