@@ -9,172 +9,168 @@ our $VERSION = '1.00.3';
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
 
-sub new
-{
-	my ($class, $file_name) = @_;
+sub new {
+    my ($class, $file_name) = @_;
 
-	my $self = {};
-	bless $self, $class;
+    my $self = {};
+    bless $self, $class;
 
-	$self->file_name($file_name) if ($file_name && $file_name ne '');
-	$self->{errstr} = [()];
+    $self->file_name($file_name) if ($file_name && $file_name ne '');
+    $self->{errstr} = [()];
 
-	$self;
+    $self;
 }
 
-sub file_name
-{
-	my $self = shift;
+sub file_name {
+    my $self = shift;
 
-	if (@_){
-		my $tmp = shift || '';
-		$self->{file_name} = $tmp if ($tmp ne '');
-	}
+    if (@_) {
+        my $tmp = shift || '';
+        $self->{file_name} = $tmp if ($tmp ne '');
+    }
 
-	if ($self->{file_name} && $self->{file_name} ne '' ){
-		c_read_file($self->{file_name});
-	} else {
-		push @{$self->{errstr}}, 'Please set file_name';
-	}
+    if ($self->{file_name} && $self->{file_name} ne '') {
+        c_read_file($self->{file_name});
+    }
+    else {
+        push @{$self->{errstr}}, 'Please set file_name';
+    }
 
-	$self->{file_name};
+    $self->{file_name};
 }
 
-sub error
-{
-	my $self = shift;
+sub error {
+    my $self = shift;
 
-	@{$self->{errstr}};
+    @{$self->{errstr}};
 }
 
-sub errstr
-{
-	my $self = shift;
+sub errstr {
+    my $self = shift;
 
-	shift @{$self->{errstr}};
+    shift @{$self->{errstr}};
 }
 
-sub get_camera_info
-{
-	my $self = shift;
+sub get_camera_info {
+    my $self = shift;
 
-	my $hash;
+    my $hash;
 
-	if (c_errstr()){
-		push @{$self->{errstr}}, c_errstr();
-	} else {
-		c_get_camera_info();
-		while(my ($fld, $val) = c_fetch()){
-			$val =~ s/\s*$//g;
-			$fld eq '' && next;
-	                $hash->{$fld} = $val;
-        	}
-	}
-	$hash;
+    if (c_errstr()) {
+        push @{$self->{errstr}}, c_errstr();
+    }
+    else {
+        c_get_camera_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $val =~ s/\s*$//g;
+            $fld eq '' && next;
+            $hash->{$fld} = $val;
+        }
+    }
+    $hash;
 }
 
-sub get_image_info
-{
-	my $self = shift;
+sub get_image_info {
+    my $self = shift;
 
-	my $hash;
+    my $hash;
 
-	if (c_errstr()){
-		push @{$self->{errstr}}, c_errstr();
-	} else {
-		c_get_image_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{$fld} = $val;
-        	}
-	}
-	$hash;
+    if (c_errstr()) {
+        push @{$self->{errstr}}, c_errstr();
+    }
+    else {
+        c_get_image_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{$fld} = $val;
+        }
+    }
+    $hash;
 }
 
-sub get_other_info
-{
-	my $self = shift;
+sub get_other_info {
+    my $self = shift;
 
-	my $hash;
+    my $hash;
 
-	if (c_errstr()){
-		push @{$self->{errstr}}, c_errstr();
-	} else {
-		c_get_other_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{$fld} = $val;
-        	}
-	}
-	$hash;
+    if (c_errstr()) {
+        push @{$self->{errstr}}, c_errstr();
+    }
+    else {
+        c_get_other_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{$fld} = $val;
+        }
+    }
+    $hash;
 }
 
-sub get_unknown_info
-{
-	my $self = shift;
+sub get_unknown_info {
+    my $self = shift;
 
-	my $hash;
+    my $hash;
 
-	if (c_errstr()){
-		push @{$self->{errstr}}, c_errstr();
-	} else {
-		c_get_unknown_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{$fld} = $val;
-        	}
-	}
-	$hash;
+    if (c_errstr()) {
+        push @{$self->{errstr}}, c_errstr();
+    }
+    else {
+        c_get_unknown_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{$fld} = $val;
+        }
+    }
+    $hash;
 }
 
-sub get_all_info
-{
-	my $self = shift;
+sub get_all_info {
+    my $self = shift;
 
-	my $hash;
+    my $hash;
 
-	if (c_errstr()){
-		push @{$self->{errstr}}, c_errstr();
-		return;
-	} else {
-		c_get_camera_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{camera}->{$fld} = $val;
-        	}
+    if (c_errstr()) {
+        push @{$self->{errstr}}, c_errstr();
+        return;
+    }
+    else {
+        c_get_camera_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{camera}->{$fld} = $val;
+        }
 
-		c_get_image_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{image}->{$fld} = $val;
-        	}
+        c_get_image_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{image}->{$fld} = $val;
+        }
 
-		c_get_other_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{other}->{$fld} = $val;
-        	}
+        c_get_other_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{other}->{$fld} = $val;
+        }
 
-		c_get_unknown_info();
-		while(my ($fld, $val) = c_fetch()){
-			$fld eq '' && next;
-			$val =~ s/\s*$//g;
-	                $hash->{unknown}->{$fld} = $val;
-        	}
-	}
+        c_get_unknown_info();
+        while (my ($fld, $val) = c_fetch()) {
+            $fld eq '' && next;
+            $val =~ s/\s*$//g;
+            $hash->{unknown}->{$fld} = $val;
+        }
+    }
 
-	$hash;
+    $hash;
 }
 
-sub DESTROY
-{
-	c_close_all();
+sub DESTROY {
+    c_close_all();
 }
 
 1;
@@ -189,22 +185,21 @@ Image::EXIF - Perl extension for exif library
   use Image::EXIF;
   use Data::Dumper;
 
-   my $exif = new Image::EXIF($file_name);
+  my $exif = new Image::EXIF ($file_name);
 
-      or
+  # or:
+  my $exif = new Image::EXIF;
+  $exif->file_name($file_name);
 
-   my $exif = new Image::EXIF;
-   $exif->file_name($file_name);
+  my $image_info = $exif->get_image_info(); # hash reference
+  my $camera_info = $exif->get_camera_info(); # hash reference
+  my $other_info = $exif->get_other_info(); # hash reference
+  my $point_shoot_info = $exif->get_point_shoot_info(); # hash reference
+  my $unknown_info = $exif->get_unknown_info(); # hash reference
+  my $all_info = $exif->get_all_info(); # hash reference
 
-   my $image_info = $exif->get_image_info(); # hash reference
-   my $camera_info = $exif->get_camera_info(); # hash reference
-   my $other_info = $exif->get_other_info(); # hash reference
-   my $point_shoot_info = $exif->get_point_shoot_info(); # hash reference
-   my $unknown_info = $exif->get_unknown_info(); # hash reference
-   my $all_info = $exif->get_all_info(); # hash reference
-
-   print $exif->error ?
-	$exif->errstr : Dumper($all_info);
+  print $exif->error ?
+      $exif->errstr : Dumper($all_info);
 
 =head1 DESCRIPTION
 
