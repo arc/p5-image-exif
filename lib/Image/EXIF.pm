@@ -25,7 +25,7 @@ sub new
 	$self;
 }
 
-sub file_name($;$)
+sub file_name
 {
 	my $self = shift;
 
@@ -43,21 +43,21 @@ sub file_name($;$)
 	$self->{file_name};
 }
 
-sub error($)
+sub error
 {
 	my $self = shift;
 
 	@{$self->{errstr}};
 }
 
-sub errstr($)
+sub errstr
 {
 	my $self = shift;
 
 	shift @{$self->{errstr}};
 }
 
-sub get_camera_info($)
+sub get_camera_info
 {
 	my $self = shift;
 
@@ -76,7 +76,7 @@ sub get_camera_info($)
 	$hash;
 }
 
-sub get_image_info($)
+sub get_image_info
 {
 	my $self = shift;
 
@@ -95,7 +95,7 @@ sub get_image_info($)
 	$hash;
 }
 
-sub get_other_info($)
+sub get_other_info
 {
 	my $self = shift;
 
@@ -114,7 +114,7 @@ sub get_other_info($)
 	$hash;
 }
 
-sub get_unknown_info($)
+sub get_unknown_info
 {
 	my $self = shift;
 
@@ -133,7 +133,7 @@ sub get_unknown_info($)
 	$hash;
 }
 
-sub get_all_info($)
+sub get_all_info
 {
 	my $self = shift;
 

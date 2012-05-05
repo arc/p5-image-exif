@@ -139,6 +139,7 @@ not_here(char *s)
 
 MODULE = Image::EXIF		PACKAGE = Image::EXIF		
 
+PROTOTYPES: DISABLE
 
 int
 c_read_file(fname)
