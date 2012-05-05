@@ -5,8 +5,6 @@
 #include "exif.h"
 #include "jpeg.h"
 
-static char error[256];
-
 struct exiftags *et = NULL;
 struct exifprop *ep = NULL;
 unsigned short dumplvl = 0;
@@ -115,7 +113,6 @@ int
 c_read_file(name)
     char *name
 CODE:
-    error[0] = '\0';
     RETVAL = read_data(name);
 OUTPUT:
     RETVAL
@@ -159,14 +156,6 @@ PPCODE:
         EXTEND(sp, 2);
         PUSHs(sv_2mortal(newSVpv((char*)field, 0)));
         PUSHs(sv_2mortal(newSVpv((char*)value, 0)));
-    }
-
-int
-c_errstr()
-PPCODE:
-    if (strlen(error)) {
-        EXTEND(sp, 1);
-        PUSHs(sv_2mortal(newSVpv((char*)error, 0)));
     }
 
 void

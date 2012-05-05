@@ -15,7 +15,6 @@ sub new {
     my $self = bless {}, $class;
 
     $self->file_name($file_name) if $file_name && $file_name ne '';
-    $self->{errstr} = [];
 
     return $self;
 }
@@ -23,33 +22,20 @@ sub new {
 sub file_name {
     my ($self, $file_name) = @_;
 
-    $self->{file_name} = $file_name
-        if defined $file_name && $file_name ne '';
-
-    c_read_file($self->{file_name});
+    if (defined $file_name) {
+        $self->{file_name} = $file_name;
+        c_read_file($file_name)
+    }
 
     return $self->{file_name};
 }
 
-sub error {
-    my ($self) = @_;
-
-    return @{ $self->{errstr} };
-}
-
-sub errstr {
-    my ($self) = @_;
-
-    return shift @{ $self->{errstr} };
-}
+# These exist for compatibility with the historical API
+sub error  { 0 }
+sub errstr { undef }
 
 sub get_camera_info {
     my ($self) = @_;
-
-    if (c_errstr()) {
-        push @{ $self->{errstr} }, c_errstr();
-        return undef;
-    }
 
     c_get_camera_info();
     return __fetch_data();
@@ -58,22 +44,12 @@ sub get_camera_info {
 sub get_image_info {
     my ($self) = @_;
 
-    if (c_errstr()) {
-        push @{ $self->{errstr} }, c_errstr();
-        return undef;
-    }
-
     c_get_image_info();
     return __fetch_data();
 }
 
 sub get_other_info {
     my ($self) = @_;
-
-    if (c_errstr()) {
-        push @{ $self->{errstr} }, c_errstr();
-        return;
-    }
 
     c_get_other_info();
     return __fetch_data();
@@ -82,22 +58,12 @@ sub get_other_info {
 sub get_unknown_info {
     my ($self) = @_;
 
-    if (c_errstr()) {
-        push @{ $self->{errstr} }, c_errstr();
-        return;
-    }
-
     c_get_unknown_info();
     return __fetch_data();
 }
 
 sub get_all_info {
     my ($self) = @_;
-
-    if (c_errstr()) {
-        push @{ $self->{errstr} }, c_errstr();
-        return;
-    }
 
     my %hash;
     for my $key (qw<camera image other unknown>) {
@@ -150,7 +116,6 @@ Image::EXIF - Perl extension for exif library
   my $unknown_info = $exif->get_unknown_info(); # hash reference
   my $all_info = $exif->get_all_info(); # hash reference
 
-  die $exif->errstr if $exif->error;
   print Dumper($all_info);
 
 =head1 DESCRIPTION
