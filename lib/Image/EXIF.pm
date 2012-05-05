@@ -4,13 +4,10 @@ use 5.006;
 use strict;
 use warnings;
 
-require DynaLoader;
-
-our @ISA = qw(DynaLoader);
-
 our $VERSION = '1.00.3';
 
-bootstrap Image::EXIF $VERSION;
+use XSLoader;
+XSLoader::load(__PACKAGE__, $VERSION);
 
 sub new
 {
