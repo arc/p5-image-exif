@@ -3,12 +3,9 @@ package Image::EXIF;
 use 5.006;
 use strict;
 use warnings;
-use Carp;
 
 require Exporter;
 require DynaLoader;
-
-use Data::Dumper;
 
 our @ISA = qw(Exporter DynaLoader);
 
