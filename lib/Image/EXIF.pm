@@ -51,77 +51,49 @@ sub errstr {
 sub get_camera_info {
     my ($self) = @_;
 
-    my $hash;
-
     if (c_errstr()) {
         push @{ $self->{errstr} }, c_errstr();
+        return undef;
     }
-    else {
-        c_get_camera_info();
-        while (my ($fld, $val) = c_fetch()) {
-            next if $fld eq '';
-            $val =~ s/\s*\z//;
-            $hash->{$fld} = $val;
-        }
-    }
-    return $hash;
+
+    c_get_camera_info();
+    return __fetch_data();
 }
 
 sub get_image_info {
     my ($self) = @_;
 
-    my $hash;
-
     if (c_errstr()) {
         push @{ $self->{errstr} }, c_errstr();
+        return undef;
     }
-    else {
-        c_get_image_info();
-        while (my ($fld, $val) = c_fetch()) {
-            next if $fld eq '';
-            $val =~ s/\s*\z//;
-            $hash->{$fld} = $val;
-        }
-    }
-    return $hash;
+
+    c_get_image_info();
+    return __fetch_data();
 }
 
 sub get_other_info {
     my ($self) = @_;
 
-    my $hash;
-
     if (c_errstr()) {
         push @{ $self->{errstr} }, c_errstr();
+        return;
     }
-    else {
-        c_get_other_info();
-        while (my ($fld, $val) = c_fetch()) {
-            next if $fld eq '';
-            $val =~ s/\s*\z//;
-            $hash->{$fld} = $val;
-        }
-    }
-    return $hash;
+
+    c_get_other_info();
+    return __fetch_data();
 }
 
 sub get_unknown_info {
     my ($self) = @_;
 
-    my $hash;
-
     if (c_errstr()) {
         push @{ $self->{errstr} }, c_errstr();
+        return;
     }
-    else {
-        c_get_unknown_info();
-        while (my ($fld, $val) = c_fetch()) {
-            next if $fld eq '';
-            $val =~ s/\s*\z//;
-            $hash->{$fld} = $val;
-        }
-    }
-    return $hash;
+
+    c_get_unknown_info();
+    return __fetch_data();
 }
 
 sub get_all_info {
@@ -132,41 +104,30 @@ sub get_all_info {
         return;
     }
 
-    my $hash;
-
-    c_get_camera_info();
-    while (my ($fld, $val) = c_fetch()) {
-        next if $fld eq '';
-        $val =~ s/\s*\z//;
-        $hash->{camera}{$fld} = $val;
+    my %hash;
+    for my $key (qw<camera image other unknown>) {
+        my $method = "get_$key\_info";
+        my $data = $self->$method or next;
+        $hash{$key} = $data;
     }
 
-    c_get_image_info();
-    while (my ($fld, $val) = c_fetch()) {
-        next if $fld eq '';
-        $val =~ s/\s*\z//;
-        $hash->{image}{$fld} = $val;
-    }
-
-    c_get_other_info();
-    while (my ($fld, $val) = c_fetch()) {
-        next if $fld eq '';
-        $val =~ s/\s*\z//;
-        $hash->{other}{$fld} = $val;
-    }
-
-    c_get_unknown_info();
-    while (my ($fld, $val) = c_fetch()) {
-        next if $fld eq '';
-        $val =~ s/\s*\z//;
-        $hash->{unknown}{$fld} = $val;
-    }
-
-    return $hash;
+    return %hash ? \%hash : undef;
 }
 
 sub DESTROY {
     c_close_all();
+}
+
+sub __fetch_data {
+
+    my %data;
+    while (my ($name, $value) = c_fetch()) {
+        next if $name eq '';
+        $value =~ s/\s*\z//;
+        $data{$name} = $value;
+    }
+
+    return %data ? \%data : undef;
 }
 
 1;
