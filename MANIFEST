@@ -5,6 +5,7 @@ Makefile.PL
 MANIFEST
 README
 test.pl
+typemap
 canon.c
 casio.c
 exif.c
