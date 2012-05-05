@@ -26,12 +26,7 @@ sub file_name {
     $self->{file_name} = $file_name
         if defined $file_name && $file_name ne '';
 
-    if (defined $self->{file_name} && $self->{file_name} ne '') {
-        c_read_file($self->{file_name});
-    }
-    else {
-        push @{ $self->{errstr} }, 'Please set file_name';
-    }
+    c_read_file($self->{file_name});
 
     return $self->{file_name};
 }
