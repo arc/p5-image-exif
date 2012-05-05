@@ -20,3 +20,6 @@ minolta.c
 nikon.c
 olympus.c
 tagdefs.c
+examples/create_web_gallery.pl
+examples/rename.pl
+examples/t.pl
