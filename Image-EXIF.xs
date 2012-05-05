@@ -12,15 +12,15 @@ struct exifprop *ep = NULL;
 unsigned short dumplvl = 0;
 
 static int
-read_data(char *fname)
+read_data(char *name)
 {
-    static char _file_name[1024] = "";
+    static char prev_name[1024] = "";
 
     int mark, first = 0;
     unsigned int len, rlen;
     unsigned char *exifbuf = NULL;
 
-    FILE *fpn;
+    FILE *fp;
     char *mode;
 
 #ifdef WIN32
@@ -29,29 +29,24 @@ read_data(char *fname)
     mode = "r";
 #endif
 
-    if (strcmp(fname, _file_name)) {
-        fpn = fopen(fname, mode);
-        if (fpn)
-            strcpy(_file_name, fname);
-        else
-            _file_name[0] = '\0';
-    }
-    else {
+    if (strcmp(name, prev_name) == 0)
         return 0;
-    }
 
-    if (fpn == NULL) {
+    fp = fopen(name, mode);
+    if (!fp) {
+        prev_name[0] = '\0';
         exifdie((const char *)strerror(errno));
         return 2;
     }
 
-    while (jpegscan(fpn, &mark, &len, !(first++))) {
+    strcpy(prev_name, name);
 
+    while (jpegscan(fp, &mark, &len, !(first++))) {
         if (mark != JPEG_M_APP1) {
-            if (fseek(fpn, len, SEEK_CUR)) {
+            if (fseek(fp, len, SEEK_CUR)) {
                 exifdie((const char *)strerror(errno));
                 free(exifbuf);
-                fclose(fpn);
+                fclose(fp);
                 return 2;
             }
             continue;
@@ -61,34 +56,32 @@ read_data(char *fname)
         if (!exifbuf) {
             exifdie((const char *)strerror(errno));
             free(exifbuf);
-            fclose(fpn);
+            fclose(fp);
             return 2;
         }
 
-        rlen = fread(exifbuf, 1, len, fpn);
+        rlen = fread(exifbuf, 1, len, fp);
         if (rlen != len) {
             exifwarn("error reading JPEG (length mismatch)");
             free(exifbuf);
-            fclose(fpn);
-            return (1);
+            fclose(fp);
+            return 1;
         }
 
         et = exifparse(exifbuf, len);
 
-        if (et && et->props) {
+        if (et && et->props)
             break;
-        }
-        else {
-            exifwarn("couldn't find Exif data");
-            free(exifbuf);
-            fclose(fpn);
-            return (1);
-        }
+
+        exifwarn("couldn't find Exif data");
+        free(exifbuf);
+        fclose(fp);
+        return 1;
     }
 
     free(exifbuf);
-    fclose(fpn);
-    return (0);
+    fclose(fp);
+    return 0;
 }
 
 static long
@@ -143,13 +136,11 @@ MODULE = Image::EXIF            PACKAGE = Image::EXIF
 PROTOTYPES: DISABLE
 
 int
-c_read_file(fname)
-    char *fname
+c_read_file(name)
+    char *name
 CODE:
     error[0] = '\0';
-    RETVAL = 0;
-
-    RETVAL = read_data(fname);
+    RETVAL = read_data(name);
 OUTPUT:
     RETVAL
 
