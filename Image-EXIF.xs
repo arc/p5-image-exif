@@ -124,13 +124,6 @@ close_application()
     }
 }
 
-static int
-not_here(char *s)
-{
-    croak("%s not implemented on this architecture", s);
-    return -1;
-}
-
 MODULE = Image::EXIF            PACKAGE = Image::EXIF
 
 PROTOTYPES: DISABLE
