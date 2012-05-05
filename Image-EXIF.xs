@@ -98,7 +98,7 @@ get_props(char *field, char *value)
     return (long) ep;
 }
 
-static int
+static void
 close_application()
 {
     if (et) {
@@ -120,28 +120,28 @@ CODE:
 OUTPUT:
     RETVAL
 
-int
+void
 c_get_camera_info()
 CODE:
     dumplvl = ED_CAM;
     if (et)
         ep = et->props;
 
-int
+void
 c_get_image_info()
 CODE:
     dumplvl = ED_IMG;
     if (et)
         ep = et->props;
 
-int
+void
 c_get_other_info()
 CODE:
     dumplvl = ED_VRB;
     if (et)
         ep = et->props;
 
-int
+void
 c_get_unknown_info()
 CODE:
     dumplvl = ED_UNK;
@@ -169,7 +169,7 @@ PPCODE:
         PUSHs(sv_2mortal(newSVpv((char*)error, 0)));
     }
 
-int
+void
 c_close_all()
 PPCODE:
     close_application();
