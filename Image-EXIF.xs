@@ -14,25 +14,15 @@ unsigned short dumplvl = 0;
 static int
 read_data(char *name)
 {
-    static char prev_name[1024] = "";
-
     int mark, first = 0;
     unsigned int len, rlen;
     unsigned char *exifbuf = NULL;
+    FILE *fp = fopen(name, "rb");
 
-    FILE *fp;
-
-    if (strcmp(name, prev_name) == 0)
-        return 0;
-
-    fp = fopen(name, "rb");
     if (!fp) {
-        prev_name[0] = '\0';
         exifdie((const char *)strerror(errno));
         return 2;
     }
-
-    strcpy(prev_name, name);
 
     while (jpegscan(fp, &mark, &len, !(first++))) {
         if (mark != JPEG_M_APP1) {
