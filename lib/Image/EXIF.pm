@@ -8,8 +8,6 @@ require DynaLoader;
 
 our @ISA = qw(DynaLoader);
 
-sub get_image_info($);
-
 our $VERSION = '1.00.3';
 
 bootstrap Image::EXIF $VERSION;
