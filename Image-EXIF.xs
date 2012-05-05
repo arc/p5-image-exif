@@ -137,28 +137,8 @@ not_here(char *s)
     return -1;
 }
 
-static double
-constant(char *name, int len, int arg)
-{
-    errno = EINVAL;
-    return 0;
-}
-
 MODULE = Image::EXIF		PACKAGE = Image::EXIF		
 
-
-double
-constant(sv,arg)
-    PREINIT:
-	STRLEN		len;
-    INPUT:
-	SV *		sv
-	char *		s = SvPV(sv, len);
-	int		arg
-    CODE:
-	RETVAL = constant(s,len,arg);
-    OUTPUT:
-	RETVAL
 
 int
 c_read_file(fname)
