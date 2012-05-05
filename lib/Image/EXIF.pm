@@ -7,7 +7,6 @@ use Carp;
 
 require Exporter;
 require DynaLoader;
-use AutoLoader;
 
 use Data::Dumper;
 
@@ -28,10 +27,6 @@ our @EXPORT = qw();
 our $VERSION = '1.00.3';
 
 bootstrap Image::EXIF $VERSION;
-
-# Preloaded methods go here.
-
-# Autoload methods go after =cut, and are processed by the autosplit program.
 
 sub new
 {
