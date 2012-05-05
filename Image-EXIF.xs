@@ -21,18 +21,11 @@ read_data(char *name)
     unsigned char *exifbuf = NULL;
 
     FILE *fp;
-    char *mode;
-
-#ifdef WIN32
-    mode = "rb";
-#else
-    mode = "r";
-#endif
 
     if (strcmp(name, prev_name) == 0)
         return 0;
 
-    fp = fopen(name, mode);
+    fp = fopen(name, "rb");
     if (!fp) {
         prev_name[0] = '\0';
         exifdie((const char *)strerror(errno));
