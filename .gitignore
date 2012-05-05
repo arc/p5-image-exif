@@ -1,0 +1,8 @@
+/Makefile
+/Makefile.old
+*.bs
+*.o
+/Image-EXIF.c
+/blib
+/pm_to_blib
+MYMETA.*
