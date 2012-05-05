@@ -17,36 +17,30 @@ read_data(char *name)
     unsigned char *exifbuf = NULL;
     FILE *fp = fopen(name, "rb");
 
-    if (!fp) {
-        exifdie((const char *)strerror(errno));
-        return 2;
-    }
+    if (!fp)
+        croak("Can't open file %s: %s", name, strerror(errno));
 
     while (jpegscan(fp, &mark, &len, !(first++))) {
         if (mark != JPEG_M_APP1) {
             if (fseek(fp, len, SEEK_CUR)) {
-                exifdie((const char *)strerror(errno));
                 free(exifbuf);
                 fclose(fp);
-                return 2;
+                croak("Can't seek in file %s: %s", name, strerror(errno));
             }
             continue;
         }
 
         exifbuf = (unsigned char *) malloc(len);
         if (!exifbuf) {
-            exifdie((const char *)strerror(errno));
-            free(exifbuf);
             fclose(fp);
-            return 2;
+            croak("malloc failed");
         }
 
         rlen = fread(exifbuf, 1, len, fp);
         if (rlen != len) {
-            exifwarn("error reading JPEG (length mismatch)");
             free(exifbuf);
             fclose(fp);
-            return 1;
+            croak("error reading JPEG %s: length mismatch", name);
         }
 
         et = exifparse(exifbuf, len);
@@ -54,7 +48,7 @@ read_data(char *name)
         if (et && et->props)
             break;
 
-        exifwarn("couldn't find Exif data");
+        warn("couldn't find EXIF data in %s", name);
         free(exifbuf);
         fclose(fp);
         return 1;
