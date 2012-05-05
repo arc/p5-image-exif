@@ -1,5 +1,5 @@
 Changes
-EXIF.pm
+lib/Image/EXIF.pm
 Image-EXIF.xs
 Makefile.PL
 MANIFEST
