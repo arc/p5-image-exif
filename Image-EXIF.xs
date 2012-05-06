@@ -56,10 +56,9 @@ load(struct impl *impl, const char *name)
         break;
     }
 
-    if (!impl->et || !impl->et->props) {
-        warn("couldn't find EXIF data in %s", name);
-        if (impl->et)
-            exiffree(impl->et);
+    if (impl->et && !impl->et->props) {
+        exiffree(impl->et);
+        impl->et = 0;
     }
 
     free(exifbuf);
