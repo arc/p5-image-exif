@@ -1,5 +1,9 @@
 Revision history for Perl extension Image::EXIF.
 
+1.00.4 Thu Jul 14 15:03:03 MSD 2011
+	Fixed bugs:45085, 26094
+	Dmitry Kosenkov <junker@front.ru>
+
 1.00.3 Mod Apr 25 16:56 PST 2005
 	Mr Eric Johnston released new version of his library which is 1.00.
 	So did we!
