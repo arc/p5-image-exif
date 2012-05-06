@@ -1,3 +1,5 @@
+#define PERL_NO_GET_CONTEXT
+
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
@@ -77,7 +79,7 @@ trimmed_len(const char *p)
 }
 
 static SV *
-get_props(struct impl *impl, unsigned short lvl)
+get_props(pTHX_ struct impl *impl, unsigned short lvl)
 {
     struct exifprop *ep;
     HV *hv = 0;
@@ -160,7 +162,7 @@ SV *
 get_camera_info(impl)
     Image::EXIF impl
 CODE:
-    RETVAL = get_props(impl, ED_CAM);
+    RETVAL = get_props(aTHX_ impl, ED_CAM);
 OUTPUT:
     RETVAL
 
@@ -168,7 +170,7 @@ SV *
 get_image_info(impl)
     Image::EXIF impl
 CODE:
-    RETVAL = get_props(impl, ED_IMG);
+    RETVAL = get_props(aTHX_ impl, ED_IMG);
 OUTPUT:
     RETVAL
 
@@ -176,7 +178,7 @@ SV *
 get_other_info(impl)
     Image::EXIF impl
 CODE:
-    RETVAL = get_props(impl, ED_VRB);
+    RETVAL = get_props(aTHX_ impl, ED_VRB);
 OUTPUT:
     RETVAL
 
@@ -184,6 +186,6 @@ SV *
 get_unknown_info(impl)
     Image::EXIF impl
 CODE:
-    RETVAL = get_props(impl, ED_UNK);
+    RETVAL = get_props(aTHX_ impl, ED_UNK);
 OUTPUT:
     RETVAL
