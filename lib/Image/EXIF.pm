@@ -6,60 +6,34 @@ use warnings;
 
 our $VERSION = '1.00.3';
 
+use Carp ();
+
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
 
 sub new {
     my ($class, $file_name) = @_;
 
-    my $self = bless {}, $class;
+    my $self = $class->_new_instance;
 
-    $self->file_name($file_name) if $file_name && $file_name ne '';
+    $self->file_name("$file_name") if defined $file_name;
 
     return $self;
-}
-
-sub file_name {
-    my ($self, $file_name) = @_;
-
-    if (defined $file_name) {
-        $self->{file_name} = $file_name;
-        c_read_file($file_name)
-    }
-
-    return $self->{file_name};
 }
 
 # These exist for compatibility with the historical API
 sub error  { 0 }
 sub errstr { undef }
 
-sub get_camera_info {
-    my ($self) = @_;
-
-    c_get_camera_info();
-    return __fetch_data();
-}
-
-sub get_image_info {
-    my ($self) = @_;
-
-    c_get_image_info();
-    return __fetch_data();
-}
-
-sub get_other_info {
-    my ($self) = @_;
-
-    c_get_other_info();
-    return __fetch_data();
-}
-
-sub get_unknown_info {
-    my ($self) = @_;
-
-    c_get_unknown_info();
-    return __fetch_data();
+sub file_name {
+    my $self = shift;
+    if (@_) {
+        my $file_name = shift;
+        Carp::croak("Image::EXIF file name undefined")
+            if !defined $file_name;
+        $self->_load_file("$file_name");
+    }
+    return $self->_file_name if defined wantarray;
 }
 
 sub get_all_info {
@@ -76,19 +50,8 @@ sub get_all_info {
 }
 
 sub DESTROY {
-    c_close_all();
-}
-
-sub __fetch_data {
-
-    my %data;
-    while (my ($name, $value) = c_fetch()) {
-        next if $name eq '';
-        $value =~ s/\s*\z//;
-        $data{$name} = $value;
-    }
-
-    return %data ? \%data : undef;
+    my ($self) = @_;
+    $self->_destroy_instance;
 }
 
 1;

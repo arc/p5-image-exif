@@ -5,12 +5,19 @@
 #include "exif.h"
 #include "jpeg.h"
 
-struct exiftags *et = NULL;
-struct exifprop *ep = NULL;
-unsigned short dumplvl = 0;
+struct impl {
+    SV *file_name;
+    struct exiftags *et;
+};
 
-static int
-read_data(char *name)
+typedef struct impl *Image__EXIF;
+
+#ifndef Newxz
+#define Newxz(ptr, n, type) Newz(705, ptr, n, type)
+#endif
+
+static void
+load(struct impl *impl, const char *name)
 {
     int mark, first = 0;
     unsigned int len, rlen;
@@ -43,26 +50,46 @@ read_data(char *name)
             croak("error reading JPEG %s: length mismatch", name);
         }
 
-        et = exifparse(exifbuf, len);
+        impl->et = exifparse(exifbuf, len);
+        break;
+    }
 
-        if (et && et->props)
-            break;
-
+    if (!impl->et || !impl->et->props) {
         warn("couldn't find EXIF data in %s", name);
-        free(exifbuf);
-        fclose(fp);
-        return 1;
+        if (impl->et)
+            exiffree(impl->et);
     }
 
     free(exifbuf);
     fclose(fp);
+}
+
+static STRLEN
+trimmed_len(const char *p)
+{
+    const char *endp = p + strlen(p);
+    while (endp > p) {
+        endp--;
+        if (!isspace(*endp))
+            return endp - p + 1;
+    }
     return 0;
 }
 
-static long
-get_props(char *field, char *value)
+static SV *
+get_props(struct impl *impl, unsigned short lvl)
 {
-    if (ep && dumplvl) {
+    struct exifprop *ep;
+    HV *hv = 0;
+
+    if (!impl->file_name)
+        croak("no Image::EXIF data loaded");
+
+    if (!impl->et)
+        return &PL_sv_undef;
+
+    for (ep = impl->et->props;  ep;  ep = ep->next) {
+        const char *name;
 
         if (ep->lvl == ED_PAS)
             /* Take care of point-and-shoot values. */
@@ -71,83 +98,92 @@ get_props(char *field, char *value)
             /* For now, just treat overridden & bad values as verbose. */
             ep->lvl = ED_VRB;
 
-        if (ep->lvl == dumplvl) {
-            strcpy(field, ep->descr ? ep->descr : ep->name);
-            if (!ep->str)
-                sprintf(value, "%d", ep->value);
-            else
-                strcpy(value, ep->str);
-        }
+        if (ep->lvl != lvl)
+            continue;
 
-        ep = ep->next;
+        name = ep->descr ? ep->descr : ep->name;
+        if (!name || !*name)
+            continue;
+
+        if (!hv)
+            hv = newHV();
+
+        hv_store(hv, name, strlen(name),
+                 ep->str ? newSVpvn(ep->str, trimmed_len(ep->str))
+                 :         newSViv(ep->value), 0);
     }
 
-    return (long) ep;
-}
-
-static void
-close_application()
-{
-    if (et) {
-        exiffree(et);
-        et = NULL;
-    }
+    return hv ? newRV_noinc((SV *) hv) : &PL_sv_undef;
 }
 
 MODULE = Image::EXIF            PACKAGE = Image::EXIF
 
 PROTOTYPES: DISABLE
 
-int
-c_read_file(name)
-    char *name
+Image::EXIF
+_new_instance(package)
+    char *package
 CODE:
-    RETVAL = read_data(name);
+    struct impl *impl;
+    Newxz(impl, 1, struct impl);
+    RETVAL = impl;
 OUTPUT:
     RETVAL
 
 void
-c_get_camera_info()
+_destroy_instance(impl)
+    Image::EXIF impl
 CODE:
-    dumplvl = ED_CAM;
-    if (et)
-        ep = et->props;
+    if (impl->file_name)
+        SvREFCNT_dec(impl->file_name);
+    if (impl->et)
+        exiffree(impl->et);
+    Safefree(impl);
 
 void
-c_get_image_info()
+_load_file(impl, file_name)
+    Image::EXIF impl
+    SV *file_name;
 CODE:
-    dumplvl = ED_IMG;
-    if (et)
-        ep = et->props;
+    load(impl, SvPV_nolen(file_name));
+    impl->file_name = SvREFCNT_inc(file_name);
 
-void
-c_get_other_info()
+SV *
+_file_name(impl)
+    Image::EXIF impl
 CODE:
-    dumplvl = ED_VRB;
-    if (et)
-        ep = et->props;
+    RETVAL = newSVsv(impl->file_name);
+OUTPUT:
+    RETVAL
 
-void
-c_get_unknown_info()
+SV *
+get_camera_info(impl)
+    Image::EXIF impl
 CODE:
-    dumplvl = ED_UNK;
-    if (et)
-        ep = et->props;
+    RETVAL = get_props(impl, ED_CAM);
+OUTPUT:
+    RETVAL
 
-int
-c_fetch()
-PPCODE:
-    char field[256] = "";
-    char value[256] = "";
+SV *
+get_image_info(impl)
+    Image::EXIF impl
+CODE:
+    RETVAL = get_props(impl, ED_IMG);
+OUTPUT:
+    RETVAL
 
-    int rc = get_props(field, value);
-    if (rc) {
-        EXTEND(sp, 2);
-        PUSHs(sv_2mortal(newSVpv((char*)field, 0)));
-        PUSHs(sv_2mortal(newSVpv((char*)value, 0)));
-    }
+SV *
+get_other_info(impl)
+    Image::EXIF impl
+CODE:
+    RETVAL = get_props(impl, ED_VRB);
+OUTPUT:
+    RETVAL
 
-void
-c_close_all()
-PPCODE:
-    close_application();
+SV *
+get_unknown_info(impl)
+    Image::EXIF impl
+CODE:
+    RETVAL = get_props(impl, ED_UNK);
+OUTPUT:
+    RETVAL
