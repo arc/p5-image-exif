@@ -1,5 +1,19 @@
 Revision history for Perl extension Image::EXIF.
 
+2.00    Sun May  6 16:22:04 BST 2012
+        - New maintainer Aaron Crane <arc@cpan.org>
+        - New versioning scheme: don't encode exiftags version number in
+          Perl module version
+        - Upgrade embedded exiftags library to 1.01
+        - Require Perl 5.8
+        - Fix build on case-insensitive filesystems, as typically found
+          under Mac OS, Windows, Cygwin, etc (RT#4353, RT#4973, RT#76281)
+        - Fix broken dists (RT#4353, RT#32641)
+        - Fix: allow multiple Image::EXIF objects to exist simultaneously
+        - Fix: no more fixed-size buffers (and potential buffer overflows)
+        - Use exceptions to report errors, not a mixture of exit() and
+          return-value checking (RT#26094)
+
 1.00.4 Thu Jul 14 15:03:03 MSD 2011
         Fixed bugs:45085, 26094
         Dmitry Kosenkov <junker@front.ru>
