@@ -62,18 +62,13 @@ read_data(char *name)
 static long
 get_props(char *field, char *value)
 {
-    int pas = TRUE;
-
     if (ep && dumplvl) {
 
-        /* Take care of point-and-shoot values. */
-
         if (ep->lvl == ED_PAS)
-            ep->lvl = pas ? ED_CAM : ED_IMG;
-
-        /* For now, just treat overridden & bad values as verbose. */
-
-        if (ep->lvl == ED_OVR || ep->lvl == ED_BAD)
+            /* Take care of point-and-shoot values. */
+            ep->lvl = ED_CAM;
+        else if (ep->lvl == ED_OVR || ep->lvl == ED_BAD)
+            /* For now, just treat overridden & bad values as verbose. */
             ep->lvl = ED_VRB;
 
         if (ep->lvl == dumplvl) {
