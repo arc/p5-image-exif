@@ -7,7 +7,6 @@ WriteMakefile(
     PREREQ_PM     => {},
     ABSTRACT_FROM => $module_file,
     AUTHOR        => 'sergey s prozhogin <ccpro@rrelaxo.org.ru>',
-    LIBS          => ['-lexif'],
     OBJECT        => '$(O_FILES)',
     XS            => { 'Image-EXIF.xs' => 'Image-EXIF.c' },
 );
