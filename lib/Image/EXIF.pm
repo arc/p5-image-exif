@@ -83,16 +83,34 @@ Image::EXIF - Perl extension for exif library
 
 =head1 DESCRIPTION
 
-Perl Package Image::EXIF based on utility exiftags v0.99.1
-by Eric M. Johnston, emj@postal.net, http://johnst.org/sw/exiftags/.
-Actually it's just a wrapper. Weak PHP's support of EXIF
-made me write it.
-If you wanna improve it - go ahead. I did this module only
-because nobody did it before.
+Perl package Image::EXIF based on exiftags by Eric M. Johnston:
+L<http://johnst.org/sw/exiftags/>.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-sergey s prozhogin<lt>ccpro@rrelaxo.org.ru<gt>
+=over 4
+
+=item * Aaron Crane E<lt>arc@cpan.orgE<gt> (current maintainer)
+
+=item * sergey s prozhogin E<lt>ccpro@rrelaxo.org.ruE<gt>
+
+=back
+
+=head1 REPORTING BUGS
+
+Please report bugs at either of the following locations:
+
+=over 4
+
+=item *
+
+L<https://rt.cpan.org/Public/Dist/Display.html?Name=Image-EXIF>
+
+=item *
+
+L<https://github.com/arc/p5-image-exif>
+
+=back
 
 =head1 SEE ALSO
 
