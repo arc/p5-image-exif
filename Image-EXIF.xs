@@ -19,7 +19,7 @@ typedef struct impl *Image__EXIF;
 #endif
 
 static void
-load(struct impl *impl, const char *name)
+load(pTHX_ struct impl *impl, const char *name)
 {
     int mark, first = 0;
     unsigned int len, rlen;
@@ -146,7 +146,7 @@ _load_file(impl, file_name)
     Image::EXIF impl
     SV *file_name;
 CODE:
-    load(impl, SvPV_nolen(file_name));
+    load(aTHX_ impl, SvPV_nolen(file_name));
     impl->file_name = SvREFCNT_inc(file_name);
 
 SV *
