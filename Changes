@@ -1,5 +1,8 @@
 Revision history for Perl extension Image::EXIF.
 
+2.01    Fri May 11 18:04:11 BST 2012
+        - Fix building under Perl 5.8.8 (including Red Hat 5.6)
+
 2.00    Sun May  6 16:22:04 BST 2012
         - New maintainer Aaron Crane <arc@cpan.org>
         - New versioning scheme: don't encode exiftags version number in
